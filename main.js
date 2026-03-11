@@ -996,6 +996,22 @@ const _setupIpcHandlers = (window) => {
       window.close();
     }
   });
+
+  // Handle minimize-window request from frontend
+  ipcMain.on('minimize-window', () => {
+    console.log('[IPC] Received minimize-window request from frontend');
+    if (window) {
+      window.minimize();
+    }
+  });
+
+  // Handle open-dev-tools request from frontend (dev mode only)
+  ipcMain.on('open-dev-tools', () => {
+    console.log('[IPC] Received open-dev-tools request from frontend');
+    if (isDev && window) {
+      window.webContents.openDevTools();
+    }
+  });
 };
 
 const CredentialsManager = require('./src/credentialsManager');
