@@ -29,7 +29,7 @@ jobs:
     - name: Install frontend dependencies
       env:
         NODE_ENV: development
-      run: npm install --prefix frontend
+      run: npm ci --prefix frontend
     
     - name: Build frontend
       run: npm run build --prefix frontend
