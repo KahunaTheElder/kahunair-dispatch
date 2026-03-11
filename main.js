@@ -1,3 +1,4 @@
+// Build v0.2.1 - Production release with credential fixes
 const { app, BrowserWindow, ipcMain, dialog, Menu } = require('electron');
 const { spawn } = require('child_process');
 const path = require('path');
