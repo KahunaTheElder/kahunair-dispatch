@@ -26,7 +26,9 @@ console.log('[CredentialsManager] Credentials file:', configFile);
 // Save credentials to file
 const saveCredentials = (creds) => {
   try {
-    fs.writeFileSync(configFile, JSON.stringify(creds, null, 2), 'utf-8');
+    const json = JSON.stringify(creds, null, 2);
+    // Use UTF8 without BOM
+    fs.writeFileSync(configFile, json, { encoding: 'utf8', flag: 'w' });
     console.log('[CredentialsManager] Credentials saved to', configFile);
   } catch (error) {
     console.error('[CredentialsManager] Error saving credentials:', error.message);
@@ -39,7 +41,11 @@ const loadCredentials = () => {
   try {
     // Try current location first
     if (fs.existsSync(configFile)) {
-      const data = fs.readFileSync(configFile, 'utf-8');
+      let data = fs.readFileSync(configFile, 'utf-8');
+      // Remove BOM if present
+      if (data.charCodeAt(0) === 0xFEFF) {
+        data = data.slice(1);
+      }
       const creds = JSON.parse(data);
       console.log('[CredentialsManager] Loaded credentials from:', configFile);
       // Ensure credentialsConfigured flag is set
@@ -50,7 +56,11 @@ const loadCredentials = () => {
     // Migration: try old home directory location
     const oldConfigFile = path.join(os.homedir(), '.kahunair-dispatch', 'credentials.json');
     if (fs.existsSync(oldConfigFile)) {
-      const data = fs.readFileSync(oldConfigFile, 'utf-8');
+      let data = fs.readFileSync(oldConfigFile, 'utf-8');
+      // Remove BOM if present
+      if (data.charCodeAt(0) === 0xFEFF) {
+        data = data.slice(1);
+      }
       const creds = JSON.parse(data);
       console.log('[CredentialsManager] Migrated credentials from old location:', oldConfigFile);
       // Ensure credentialsConfigured flag is set
