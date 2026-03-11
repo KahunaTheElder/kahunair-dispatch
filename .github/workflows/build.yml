@@ -22,7 +22,6 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
-        cache: 'false'  # Disable npm cache
     
     - name: Install dependencies (without legacy peer deps)
       run: npm install --loglevel verbose
