@@ -13,9 +13,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Platform info for renderer
   platform: process.platform,
-  
-  // App version
-  appVersion: require('electron').app.getVersion(),
 });
 
 // Handle IPC responses from main process
