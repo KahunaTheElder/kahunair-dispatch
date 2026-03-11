@@ -1,0 +1,30 @@
+{
+  "peopleId": "e1003081-ebc1-4980-8f7a-131815869997",
+  "name": "Joseph Gillott",
+  "role": "First Officer",
+  "seniorityRank": 2,
+  "background": {
+    "flightHours": 7744.956692687489,
+    "experienceLevel": "Senior FO - building command hours",
+    "specialty": "International operations",
+    "certifications": [
+      "CPL/MEIR",
+      "Type-rated on B737"
+    ]
+  },
+  "personality": {
+    "style": "professional, respectful, detail-oriented",
+    "communicationPreference": "formal, clear",
+    "humor": "minimal",
+    "authorityLevel": "Medium - defers to Captain, executes procedures"
+  },
+  "operationalPreferences": {
+    "procedurePreference": "Standard procedures",
+    "crewResourceManagement": "Active - speaks up on discrepancies",
+    "monitoringStyle": "Vigilant",
+    "procedureExecution": "Methodical, step-by-step",
+    "passengerInteraction": "Professional, courteous"
+  },
+  "customNotes": "Add any special handling, preferences, or behavioral notes here",
+  "siApiKey": null
+}

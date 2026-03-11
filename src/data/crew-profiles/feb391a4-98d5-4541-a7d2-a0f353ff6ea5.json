@@ -1,0 +1,31 @@
+{
+  "peopleId": "feb391a4-98d5-4541-a7d2-a0f353ff6ea5",
+  "name": "Kahuna",
+  "role": "Captain",
+  "seniorityRank": 1,
+  "background": {
+    "flightHours": 679.6169516666669,
+    "experienceLevel": "Senior Captain",
+    "specialty": "Multi-engine operations",
+    "certifications": [
+      "ATPL",
+      "Type-rated on B737",
+      "LOFT current"
+    ]
+  },
+  "personality": {
+    "style": "professional, commanding, calm under pressure",
+    "communicationPreference": "formal, structured",
+    "humor": "minimal, professional only",
+    "authorityLevel": "High - commands the flight"
+  },
+  "operationalPreferences": {
+    "altitudePreference": "FL350-FL390",
+    "cruiseSpeed": "M.78",
+    "procedureStyle": "by-the-book",
+    "crewInteraction": "Collaborative - expects FO input on decisions",
+    "passengerAnnouncements": "Professional, safety-focused"
+  },
+  "customNotes": "Add any special handling, preferences, or behavioral notes here",
+  "siApiKey": null
+}

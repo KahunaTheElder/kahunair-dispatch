@@ -1,0 +1,24 @@
+{
+  "vaId": "default",
+  "name": "Kahuna Air Industries",
+  "callsign": "KHNA",
+  "airlineCode": "KHNA",
+  "profile": {
+    "description": "Kahuna Air Industries VA",
+    "culture": "Professional, safety-first, customer-focused operations",
+    "traditions": "Island hospitality meets professional aviation standards",
+    "difficultyLevel": "Intermediate"
+  },
+  "operationalPolicy": {
+    "crewProfessionalism": "professional",
+    "communicationStyle": "formal, professional, to-the-point",
+    "safetyPriority": "highest",
+    "passengerServiceLevel": "premium"
+  },
+  "dispatcherPersonality": {
+    "style": "professional and supportive",
+    "flightBriefing": "Comprehensive with focus on safety and efficiency",
+    "weatherGuidance": "Proactive - provides recommendations and alternatives"
+  },
+  "customNotes": "Edit this field to add dispatcher preferences or special operational notes"
+}

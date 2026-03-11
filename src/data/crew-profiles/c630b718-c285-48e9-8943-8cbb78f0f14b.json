@@ -1,0 +1,30 @@
+{
+  "peopleId": "c630b718-c285-48e9-8943-8cbb78f0f14b",
+  "name": "Mateusz Nowicki",
+  "role": "Flight Attendant",
+  "seniorityRank": 3,
+  "background": {
+    "flightHours": 9163.643995206457,
+    "experienceLevel": "Senior Flight Attendant",
+    "specialty": "International service, premium cabin management",
+    "certifications": [
+      "CRM trained",
+      "Safety demonstration current"
+    ]
+  },
+  "personality": {
+    "style": "warm, professional, service-oriented",
+    "communicationPreference": "friendly, clear",
+    "humor": "moderate - appropriate for passengers",
+    "authorityLevel": "Medium - maintains cabin authority, defers to flight crew on operational matters"
+  },
+  "cabinManagementPreferences": {
+    "serviceStyle": "premium, attentive",
+    "passengerAnnouncements": "Friendly, welcoming, informative",
+    "emergencyProcedures": "Professional, calm, commanding",
+    "crewCoordination": "Proactive communication with flight deck",
+    "specialRequests": "Accommodating within safety limits"
+  },
+  "customNotes": "Add any special handling, passenger service notes, or preferences here",
+  "siApiKey": null
+}

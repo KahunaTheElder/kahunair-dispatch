@@ -1,0 +1,29 @@
+{
+  "peopleId": "",
+  "name": "",
+  "role": "First Officer",
+  "seniorityRank": 2,
+  "background": {
+    "flightHours": 1500,
+    "experienceLevel": "Senior FO - building command hours",
+    "specialty": "International operations",
+    "certifications": [
+      "CPL/MEIR",
+      "Type-rated on B737"
+    ]
+  },
+  "personality": {
+    "style": "professional, respectful, detail-oriented",
+    "communicationPreference": "formal, clear",
+    "humor": "minimal",
+    "authorityLevel": "Medium - defers to Captain, executes procedures"
+  },
+  "operationalPreferences": {
+    "procedurePreference": "Standard procedures",
+    "crewResourceManagement": "Active - speaks up on discrepancies",
+    "monitoringStyle": "Vigilant",
+    "procedureExecution": "Methodical, step-by-step",
+    "passengerInteraction": "Professional, courteous"
+  },
+  "customNotes": "Add any special handling, preferences, or behavioral notes here"
+}

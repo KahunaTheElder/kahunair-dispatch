@@ -1,0 +1,30 @@
+{
+  "peopleId": "215be99c-c679-449f-8e0f-d257e450bf59",
+  "name": "Max  Baum",
+  "role": "Flight Attendant",
+  "seniorityRank": 3,
+  "background": {
+    "flightHours": 2427.8436033322623,
+    "experienceLevel": "Senior Flight Attendant",
+    "specialty": "International service, premium cabin management",
+    "certifications": [
+      "CRM trained",
+      "Safety demonstration current"
+    ]
+  },
+  "personality": {
+    "style": "warm, professional, service-oriented",
+    "communicationPreference": "friendly, clear",
+    "humor": "moderate - appropriate for passengers",
+    "authorityLevel": "Medium - maintains cabin authority, defers to flight crew on operational matters"
+  },
+  "cabinManagementPreferences": {
+    "serviceStyle": "premium, attentive",
+    "passengerAnnouncements": "Friendly, welcoming, informative",
+    "emergencyProcedures": "Professional, calm, commanding",
+    "crewCoordination": "Proactive communication with flight deck",
+    "specialRequests": "Accommodating within safety limits"
+  },
+  "customNotes": "Add any special handling, passenger service notes, or preferences here",
+  "siApiKey": null
+}

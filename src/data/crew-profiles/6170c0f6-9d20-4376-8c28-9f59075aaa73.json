@@ -1,0 +1,30 @@
+{
+  "peopleId": "6170c0f6-9d20-4376-8c28-9f59075aaa73",
+  "name": "Pamela Godsey",
+  "role": "First Officer",
+  "seniorityRank": 2,
+  "background": {
+    "flightHours": 9207.851766433701,
+    "experienceLevel": "Senior FO - building command hours",
+    "specialty": "International operations",
+    "certifications": [
+      "CPL/MEIR",
+      "Type-rated on B737"
+    ]
+  },
+  "personality": {
+    "style": "professional, respectful, detail-oriented",
+    "communicationPreference": "formal, clear",
+    "humor": "minimal",
+    "authorityLevel": "Medium - defers to Captain, executes procedures"
+  },
+  "operationalPreferences": {
+    "procedurePreference": "Standard procedures",
+    "crewResourceManagement": "Active - speaks up on discrepancies",
+    "monitoringStyle": "Vigilant",
+    "procedureExecution": "Methodical, step-by-step",
+    "passengerInteraction": "Professional, courteous"
+  },
+  "customNotes": "Add any special handling, preferences, or behavioral notes here",
+  "siApiKey": null
+}
