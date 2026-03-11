@@ -82,10 +82,19 @@ module.exports = {
       if (fs.existsSync(configFile)) {
         const data = fs.readFileSync(configFile, 'utf-8');
         const creds = JSON.parse(data);
+        console.log('[CredentialsManager] Returning credentials:', Object.keys(creds));
         return {
-          ONAIR_VA_COMPANY_ID: creds.ONAIR_VA_COMPANY_ID || '',
+          // Company credentials (with fallback to old field names)
+          ONAIR_COMPANY_ID: creds.ONAIR_COMPANY_ID || creds.ONAIR_VA_COMPANY_ID || '',
+          ONAIR_COMPANY_API_KEY: creds.ONAIR_COMPANY_API_KEY || creds.ONAIR_VA_API_KEY || '',
+          // VA credentials
+          ONAIR_VA_ID: creds.ONAIR_VA_ID || '',
           ONAIR_VA_API_KEY: creds.ONAIR_VA_API_KEY || '',
-          SI_API_KEY: creds.SI_API_KEY || ''
+          // SI and SimBrief
+          SI_API_KEY: creds.SI_API_KEY || '',
+          SIMBRIEF_PILOT_ID: creds.SIMBRIEF_PILOT_ID || '',
+          // Legacy fields
+          ONAIR_VA_COMPANY_ID: creds.ONAIR_VA_COMPANY_ID || creds.ONAIR_COMPANY_ID || ''
         };
       }
     } catch (error) {
