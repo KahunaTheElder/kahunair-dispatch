@@ -1,0 +1,710 @@
+/* Fresh, minimal CSS - no reused styles */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  background: linear-gradient(135deg, #0f172a 0%, #1a1f35 100%);
+  color: #e5e7eb;
+  line-height: 1.6;
+}
+
+.app-minimal {
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  position: relative;
+}
+
+/* Top bar containing telemetry and status */
+.top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+  padding-bottom: 0;
+}
+
+/* Flight info bar - departure and arrival */
+.flight-info-bar {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 20px;
+  padding: 6px 20px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+.flight-info-text {
+  font-size: 16px;
+  color: #d1d5db;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 500;
+}
+
+.flight-alternate-text {
+  font-size: 14px;
+  color: #9ca3af;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  letter-spacing: 0.5px;
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+.flight-procedures-text {
+  font-size: 14px;
+  color: #9ca3af;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  letter-spacing: 0.5px;
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+.flight-route-text {
+  font-size: 14px;
+  color: #9ca3af;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  letter-spacing: 0.5px;
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+.flight-params-text {
+  font-size: 14px;
+  color: #9ca3af;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  letter-spacing: 0.5px;
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+.flight-cargo-text {
+  font-size: 13px;
+  color: #fbbf24;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  letter-spacing: 0.5px;
+  margin-top: 4px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.flight-passenger-text {
+  font-size: 13px;
+  color: #60a5fa;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  letter-spacing: 0.5px;
+  margin-top: 4px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.arrow-icon {
+  font-size: 18px;
+  color: #4ade80;
+  font-weight: 700;
+}
+
+/* Telemetry panel on the left */
+/* Telemetry panel on the left */
+.telemetry-panel {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  font-size: 13px;
+  color: #d1d5db;
+}
+
+.telem-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+
+.telem-value {
+  font-weight: 700;
+  color: #d1d5db;
+  min-width: 45px;
+  text-align: center;
+  font-family: 'Courier New', monospace;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.telem-label {
+  font-size: 9px;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+
+.telem-unit {
+  font-size: 8px;
+  color: #d1d5db;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Status indicators on the right */
+.status-indicators {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.status-item-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.status-label-text {
+  font-size: 11px;
+  font-weight: 600;
+  color: #d1d5db;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  min-width: 24px;
+  text-align: center;
+}
+
+.status-dot-only {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 10px currentColor;
+  opacity: 0.9;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.status-dot-only:hover {
+  transform: scale(1.2);
+}
+
+/* Crew section */
+.crew-section {
+  margin: 20px 0;
+  padding: 0 20px;
+}
+
+.crew-title {
+  font-size: 12px;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+
+.crew-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.crew-card {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-left: 4px solid #fbbf24;
+  border-radius: 4px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.crew-card.placeholder {
+  opacity: 0.4;
+}
+
+.crew-role {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-left: none;
+  padding-left: 0;
+}
+
+.crew-name {
+  font-size: 14px;
+  color: #d1d5db;
+  font-weight: 600;
+}
+
+.crew-position {
+  font-size: 11px;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 500;
+}
+
+.crew-stats {
+  display: flex;
+  gap: 12px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.crew-stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.crew-stat-label {
+  font-size: 8px;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+
+.crew-stat-value {
+  font-size: 13px;
+  color: #d1d5db;
+  font-weight: 600;
+  font-family: 'Courier New', monospace;
+}
+
+/* Crew personality and edit */
+.crew-personality {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.personality-badge {
+  flex: 1;
+  padding: 4px 8px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: white;
+  text-align: center;
+  letter-spacing: 0.5px;
+}
+
+.crew-edit-btn {
+  padding: 4px 12px;
+  background: rgba(255, 193, 7, 0.2);
+  border: 1px solid rgba(255, 193, 7, 0.5);
+  color: #fbbf24;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.crew-edit-btn:hover {
+  background: rgba(255, 193, 7, 0.3);
+  border-color: #fbbf24;
+}
+
+/* Modal styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: #1a1f35;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  max-width: 500px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+.modal-header {
+  padding: 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-header h2 {
+  font-size: 18px;
+  margin: 0;
+  color: #fff;
+}
+
+.modal-member {
+  font-size: 14px;
+  color: #9ca3af;
+  font-weight: 500;
+}
+
+.modal-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-group label {
+  font-size: 12px;
+  color: #d1d5db;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.form-group select,
+.form-group textarea {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #e5e7eb;
+  padding: 10px;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: #fbbf24;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.personality-preview {
+  background: rgba(255, 193, 7, 0.1);
+  border-left: 3px solid #fbbf24;
+  padding: 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #d1d5db;
+}
+
+.personality-preview p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.personality-preview p:not(:last-child) {
+  margin-bottom: 8px;
+}
+
+.personality-preview strong {
+  color: #fbbf24;
+}
+
+.modal-footer {
+  padding: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.btn-cancel,
+.btn-save {
+  padding: 10px 20px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.btn-cancel {
+  background: transparent;
+  color: #9ca3af;
+}
+
+.btn-cancel:hover {
+  border-color: #9ca3af;
+  color: #d1d5db;
+}
+
+.btn-save {
+  background: rgba(251, 191, 36, 0.2);
+  border-color: #fbbf24;
+  color: #fbbf24;
+}
+
+.btn-save:hover {
+  background: rgba(251, 191, 36, 0.3);
+  color: #fcd34d;
+}
+
+/* Footer with title */
+.app-footer {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.app-footer h1 {
+  font-size: 24px;
+  font-weight: 700;
+  color: #fff;
+  margin: 0;
+  padding: 0;
+}
+
+.exit-button {
+  padding: 8px 16px;
+  background: #dc2626;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  width: fit-content;
+}
+
+.exit-button:hover {
+  background: #b91c1c;
+  transform: scale(1.05);
+}
+
+.exit-button:active {
+  background: #991b1b;
+  transform: scale(0.98);
+}
+
+.debug-info {
+  text-align: center;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.debug-info p {
+  font-size: 12px;
+  color: #9ca3af;
+  margin-bottom: 8px;
+}
+
+.debug-info p:last-child {
+  margin-bottom: 0;
+}
+
+.debug-info code {
+  font-family: 'Monaco', 'Courier New', monospace;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #4ade80;
+}
+
+/* ==================== CARGO & CHARTER SECTION ==================== */
+.cargo-charter-section {
+  margin-top: 12px;
+  padding: 12px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.cargo-charter-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #d1d5db;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 10px;
+  padding: 0 0;
+}
+
+.cargo-charter-items {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Cargo group */
+.cargo-type-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cargo-type-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #fbbf24;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding-left: 4px;
+}
+
+.cargo-item {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 8px 8px;
+  background: rgba(251, 191, 36, 0.08);
+  border-left: 2px solid rgba(251, 191, 36, 0.3);
+  border-radius: 2px;
+}
+
+.cargo-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.cargo-details {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+}
+
+.cargo-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: #fbbf24;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.cargo-info {
+  display: flex;
+  gap: 12px;
+  font-size: 9px;
+  color: #9ca3af;
+  font-weight: 500;
+  flex-wrap: wrap;
+}
+
+.cargo-type {
+  background: rgba(251, 191, 36, 0.15);
+  padding: 2px 6px;
+  border-radius: 2px;
+  color: #fbbf24;
+}
+
+.cargo-weight {
+  color: #d1d5db;
+}
+
+.cargo-route {
+  color: #9ca3af;
+}
+
+/* Charter group */
+.charter-type-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.charter-type-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #60a5fa;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding-left: 4px;
+}
+
+.charter-item {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 8px 8px;
+  background: rgba(96, 165, 250, 0.08);
+  border-left: 2px solid rgba(96, 165, 250, 0.3);
+  border-radius: 2px;
+}
+
+.charter-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.charter-details {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+}
+
+.charter-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: #60a5fa;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.charter-info {
+  display: flex;
+  gap: 12px;
+  font-size: 9px;
+  color: #9ca3af;
+  font-weight: 500;
+  flex-wrap: wrap;
+}
+
+.charter-type {
+  background: rgba(96, 165, 250, 0.15);
+  padding: 2px 6px;
+  border-radius: 2px;
+  color: #60a5fa;
+}
+
+.charter-pax {
+  color: #d1d5db;
+}
+
+.charter-route {
+  color: #9ca3af;
+}
