@@ -6,8 +6,30 @@ const fs = require('fs');
 const http = require('http');
 const os = require('os');
 
+// EMERGENCY LOGGING - writes to a file even if everything fails
+const writeEmergencyLog = (msg) => {
+  const timestamp = new Date().toISOString();
+  const line = `[${timestamp}] ${msg}\n`;
+  try {
+    const logDir = path.join(os.homedir(), '.kahunair');
+    if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
+    fs.appendFileSync(path.join(logDir, 'emergency-startup.log'), line);
+  } catch (e) {
+    // Silent fail
+  }
+  console.log(msg);
+};
+
+writeEmergencyLog('================================================================');
+writeEmergencyLog('[EMERGENCY LOG] Electron app starting');
+writeEmergencyLog('[EMERGENCY LOG] Time: ' + new Date().toISOString());
+writeEmergencyLog('[EMERGENCY LOG] Node version: ' + process.version);
+writeEmergencyLog('[EMERGENCY LOG] Electron version: ' + process.versions.electron);
+
 // ===== CRITICAL: Load .env BEFORE any credential checks =====
 try {
+  writeEmergencyLog('[STEP 1] Attempting to load .env file...');
+
   const possiblePaths = [
     path.join(__dirname, '.env'),
     path.join(__dirname, '..', '.env'),
@@ -48,23 +70,62 @@ try {
   } else {
     console.log('[Electron Main] ✓ .env loaded successfully');
   }
+
+  writeEmergencyLog('[STEP 1] PASSED - .env loaded successfully');
 } catch (error) {
+  writeEmergencyLog('[STEP 1] FAILED - Exception loading .env: ' + error.message);
   console.error('[Electron Main] Error loading .env:', error.message);
 }
 
-const logger = require('./src/logger');
-const CredentialsVerifier = require('./src/credentialsVerifier');
-const AutoFlightLoader = require('./src/autoFlightLoader');
+// Load local modules with error catching
+let logger = null;
+let CredentialsVerifier = null;
+let AutoFlightLoader = null;
+
+try {
+  writeEmergencyLog('[STEP 2] Requiring src/logger...');
+  logger = require('./src/logger');
+  writeEmergencyLog('[STEP 2] PASSED - logger loaded');
+} catch (error) {
+  writeEmergencyLog('[STEP 2] FAILED - Cannot load logger: ' + error.message);
+  writeEmergencyLog('[STEP 2] Stack: ' + error.stack);
+  console.error('Failed to load logger:', error);
+}
+
+try {
+  writeEmergencyLog('[STEP 3] Requiring src/credentialsVerifier...');
+  CredentialsVerifier = require('./src/credentialsVerifier');
+  writeEmergencyLog('[STEP 3] PASSED - credentialsVerifier loaded');
+} catch (error) {
+  writeEmergencyLog('[STEP 3] FAILED - Cannot load credentialsVerifier: ' + error.message);
+  writeEmergencyLog('[STEP 3] Stack: ' + error.stack);
+  console.error('Failed to load credentialsVerifier:', error);
+}
+
+try {
+  writeEmergencyLog('[STEP 4] Requiring src/autoFlightLoader...');
+  AutoFlightLoader = require('./src/autoFlightLoader');
+  writeEmergencyLog('[STEP 4] PASSED - autoFlightLoader loaded');
+} catch (error) {
+  writeEmergencyLog('[STEP 4] FAILED - Cannot load autoFlightLoader: ' + error.message);
+  writeEmergencyLog('[STEP 4] Stack: ' + error.stack);
+  console.error('Failed to load autoFlightLoader:', error);
+}
 
 // Try to load SimConnect service (may fail on non-Windows or if module not available)
 let simConnectService = null;
 try {
+  writeEmergencyLog('[STEP 5] Attempting to load SimConnect service...');
   simConnectService = require('./src/simConnectService');
+  writeEmergencyLog('[STEP 5] PASSED - SimConnect service loaded');
   console.log('[Electron] SimConnect service loaded');
 } catch (error) {
+  writeEmergencyLog('[STEP 5] INFO - SimConnect not available (this is normal): ' + error.message);
   console.warn('[Electron] SimConnect service unavailable:', error.message);
   console.warn('[Electron] This is normal on WSL or if MSFS-simconnect-api-wrapper is not properly installed');
 }
+
+writeEmergencyLog('[MODULE LOADING] All module requires completed');
 
 // Check if running in production mode
 // Production mode: either NODE_ENV=production or frontend/dist exists
@@ -172,7 +233,7 @@ const killHangingProcesses = async () => {
   const { exec } = require('child_process');
   const { promisify } = require('util');
   const execAsync = promisify(exec);
-  
+
   try {
     // On Windows: find processes using ports 3000-3004
     if (process.platform === 'win32') {
@@ -220,25 +281,25 @@ const killHangingProcesses = async () => {
 const waitForBackendReady = async (maxWaitMs = 30000) => {
   console.log('[Electron] Waiting for backend to be ready...');
   const startTime = Date.now();
-  
+
   const testPort = (port) => {
     return new Promise((resolve) => {
       const req = http.get(`http://localhost:${port}/health`, (res) => {
         req.abort();
         resolve(res.statusCode === 200);
       });
-      
+
       req.on('error', () => {
         resolve(false);
       });
-      
+
       req.setTimeout(2000, () => {
         req.abort();
         resolve(false);
       });
     });
   };
-  
+
   while (Date.now() - startTime < maxWaitMs) {
     // Test all possible backend ports
     for (const port of [3000, 3001, 3002, 3003, 3004]) {
@@ -250,7 +311,7 @@ const waitForBackendReady = async (maxWaitMs = 30000) => {
     // Wait 500ms before retrying
     await new Promise(resolve => setTimeout(resolve, 500));
   }
-  
+
   console.warn('[Electron] ⚠ Backend did not respond within 30 seconds - proceeding anyway');
   return false;
 };
@@ -346,10 +407,10 @@ const performFullCleanupWithDialog = async () => {
         // Step 1: Terminate backend with proper SIGTERM → SIGKILL sequence
         if (backendProcess && !backendProcess.killed) {
           console.log('[Electron] Terminating backend process (PID:', backendProcess.pid, ')...');
-          
+
           // Send SIGTERM first (graceful shutdown)
           backendProcess.kill('SIGTERM');
-          
+
           // Wait up to 2 seconds for graceful shutdown
           const sigTermWait = new Promise((resolve) => {
             const exitHandler = () => {
@@ -362,14 +423,14 @@ const performFullCleanupWithDialog = async () => {
               resolve(false); // Did not exit in time
             }, 2000);
           });
-          
+
           const gracefulExit = await sigTermWait;
-          
+
           // If still alive, force kill
           if (!gracefulExit && backendProcess && !backendProcess.killed) {
             console.log('[Electron] SIGTERM timeout, forcing SIGKILL...');
             backendProcess.kill('SIGKILL');
-            
+
             // Wait for SIGKILL to take effect
             await new Promise((resolve) => {
               backendProcess.once('exit', () => {
@@ -379,7 +440,7 @@ const performFullCleanupWithDialog = async () => {
               setTimeout(resolve, 1000); // Final timeout
             });
           }
-          
+
           backendProcess = null;
         }
 
@@ -387,7 +448,7 @@ const performFullCleanupWithDialog = async () => {
         if (devServerProcess && !devServerProcess.killed) {
           console.log('[Electron] Killing Vite dev server...');
           devServerProcess.kill('SIGTERM');
-          
+
           // Wait for dev server to exit (with timeout)
           await new Promise((resolve) => {
             devServerProcess.once('exit', () => {
@@ -522,7 +583,7 @@ const startBackendServer = () => {
     logDebug('[BACKEND STARTUP] Time: ' + new Date().toISOString());
     logDebug('[BACKEND STARTUP] Electron version: ' + process.versions.electron);
     logDebug('[BACKEND STARTUP] Node version: ' + process.versions.node);
-    
+
     // ===== ENVIRONMENT DIAGNOSTICS =====
     logDebug('[BACKEND STARTUP] ===== ENVIRONMENT DIAGNOSTICS =====');
     logDebug('[BACKEND STARTUP] Platform: ' + process.platform);
@@ -532,14 +593,14 @@ const startBackendServer = () => {
     logDebug('[BACKEND STARTUP] Current working directory (process.cwd): ' + process.cwd());
     logDebug('[BACKEND STARTUP] __dirname: ' + __dirname);
     logDebug('[BACKEND STARTUP] __filename: ' + __filename);
-    
+
     // ===== FILE SYSTEM CHECKS =====
     logDebug('[BACKEND STARTUP] ===== FILE SYSTEM CHECKS =====');
     const indexPath = path.join(__dirname, 'index.js');
     const indexExists = fs.existsSync(indexPath);
     logDebug('[BACKEND STARTUP] index.js path: ' + indexPath);
     logDebug('[BACKEND STARTUP] index.js exists: ' + (indexExists ? 'YES ✓' : 'NO ✗ CRITICAL!'));
-    
+
     if (indexExists) {
       const stats = fs.statSync(indexPath);
       logDebug('[BACKEND STARTUP] index.js size: ' + stats.size + ' bytes');
@@ -550,7 +611,7 @@ const startBackendServer = () => {
     const nodeModulesExists = fs.existsSync(nodeModulesPath);
     logDebug('[BACKEND STARTUP] node_modules path: ' + nodeModulesPath);
     logDebug('[BACKEND STARTUP] node_modules exists: ' + (nodeModulesExists ? 'YES ✓' : 'NO ✗ CRITICAL!'));
-    
+
     if (nodeModulesExists) {
       const contents = fs.readdirSync(nodeModulesPath).slice(0, 10);
       logDebug('[BACKEND STARTUP] node_modules contents (first 10): ' + contents.join(', '));
@@ -568,7 +629,7 @@ const startBackendServer = () => {
     logDebug('[BACKEND STARTUP] Options.shell: ' + (process.platform === 'win32'));
     logDebug('[BACKEND STARTUP] Options.detached: false');
     logDebug('[BACKEND STARTUP] Options.env: (copying process.env)');
-    
+
     // ===== ENVIRONMENT VARIABLES (PARTIAL DUMP) =====
     logDebug('[BACKEND STARTUP] ===== KEY ENVIRONMENT VARIABLES =====');
     const envKeys = ['PATH', 'NODE_ENV', 'ONAIR_VA_COMPANY_ID', 'ONAIR_VA_API_KEY', 'SI_API_KEY'];
@@ -589,13 +650,13 @@ const startBackendServer = () => {
     let spanwSuccessful = false;
     try {
       logDebug('[BACKEND STARTUP] [CHECKPOINT 1] About to invoke spawn()');
-      
+
       backendProcess = spawn('node', ['index.js'], {
         cwd: __dirname,
         stdio: ['ignore', 'pipe', 'pipe'],
         shell: process.platform === 'win32',
         detached: false,
-        env: {...process.env}
+        env: { ...process.env }
       });
 
       logDebug('[BACKEND STARTUP] [CHECKPOINT 2] spawn() returned successfully');
@@ -610,7 +671,7 @@ const startBackendServer = () => {
         logDebug('[BACKEND STARTUP] ✗ CRITICAL: backendProcess.stdout is null!');
       } else {
         logDebug('[BACKEND STARTUP] ✓ backendProcess.stdout is available');
-        
+
         backendProcess.stdout.on('data', (data) => {
           const output = data.toString().trim();
           if (output) {
@@ -638,7 +699,7 @@ const startBackendServer = () => {
         logDebug('[BACKEND STARTUP] ✗ CRITICAL: backendProcess.stderr is null!');
       } else {
         logDebug('[BACKEND STARTUP] ✓ backendProcess.stderr is available');
-        
+
         backendProcess.stderr.on('data', (data) => {
           const output = data.toString().trim();
           if (output) {
@@ -669,7 +730,7 @@ const startBackendServer = () => {
         logDebug('[BACKEND STARTUP] Error errno: ' + err.errno);
         logDebug('[BACKEND STARTUP] Error syscall: ' + err.syscall);
         logDebug('[BACKEND STARTUP] Full error: ' + JSON.stringify(err, null, 2));
-        
+
         if (err.code === 'ENOENT') {
           logDebug('[BACKEND STARTUP] → Interpretation: "node" executable not found in PATH');
           logDebug('[BACKEND STARTUP] → Solution: Verify NODE is installed and accessible from Electron context');
@@ -677,7 +738,7 @@ const startBackendServer = () => {
           logDebug('[BACKEND STARTUP] → Interpretation: Permission denied');
           logDebug('[BACKEND STARTUP] → Solution: Check file permissions on index.js and node executable');
         }
-        
+
         resolve(false);
       });
 
@@ -726,17 +787,17 @@ const startBackendServer = () => {
 
     const testBackendHealth = async (attemptNum) => {
       logDebug('[HEALTH CHECK] ===== ATTEMPT #' + attemptNum + ' =====');
-      
+
       for (let port = 3000; port <= 3004; port++) {
         const url = `http://localhost:${port}/health`;
         try {
           logDebug('[HEALTH CHECK] Testing port ' + port + ': ' + url);
           const controller = new AbortController();
           const timeout = setTimeout(() => controller.abort(), 1000);
-          
+
           const response = await fetch(url, { signal: controller.signal });
           clearTimeout(timeout);
-          
+
           if (response.ok) {
             logDebug('[HEALTH CHECK] ✓✓✓ HEALTH CHECK PASSED ON PORT ' + port + ' ✓✓✓');
             logDebug('[HEALTH CHECK] Response status: ' + response.status);
@@ -758,7 +819,7 @@ const startBackendServer = () => {
     const healthCheckInterval = setInterval(async () => {
       healthCheckAttempt++;
       const isHealthy = await testBackendHealth(healthCheckAttempt);
-      
+
       if (isHealthy) {
         logDebug('[HEALTH CHECK] ✓ Backend is healthy, clearing interval and resolving');
         clearInterval(healthCheckInterval);
@@ -766,7 +827,7 @@ const startBackendServer = () => {
       } else {
         const elapsed = Date.now() - startTime;
         logDebug('[HEALTH CHECK] Not healthy yet, elapsed: ' + elapsed + 'ms');
-        
+
         if (elapsed > 10000) {
           logDebug('[HEALTH CHECK] ✗ TIMEOUT after 10 seconds');
           logDebug('[HEALTH CHECK] Assuming backend is starting, resolving anyway');
@@ -943,9 +1004,12 @@ const CredentialsManager = require('./src/credentialsManager');
  */
 const showCredentialSetupDialog = async (missingVars) => {
   const varLabels = {
-    'ONAIR_VA_COMPANY_ID': 'OnAir VA Company ID',
+    'ONAIR_COMPANY_ID': 'OnAir Company ID',
+    'ONAIR_COMPANY_API_KEY': 'OnAir Company API Key',
+    'ONAIR_VA_ID': 'OnAir VA ID',
     'ONAIR_VA_API_KEY': 'OnAir VA API Key',
-    'SI_API_KEY': 'SayIntentions.AI API Key'
+    'SI_API_KEY': 'SayIntentions.AI API Key',
+    'SIMBRIEF_PILOT_ID': 'SimBrief Pilot ID'
   };
 
   const missingLabels = missingVars.map(v => `  • ${varLabels[v]}`).join('\n');
@@ -1011,8 +1075,7 @@ const verifyCredentialsOnStartup = async () => {
   console.log('[Electron] Verifying application credentials...');
 
   // First check if we have credentials in environment
-  const hasEnvCredentials = process.env.ONAIR_VA_COMPANY_ID &&
-    process.env.ONAIR_VA_API_KEY &&
+  const hasEnvCredentials = (process.env.ONAIR_COMPANY_ID || process.env.ONAIR_VA_ID) &&
     process.env.SI_API_KEY;
 
   if (!hasEnvCredentials) {
@@ -1020,9 +1083,17 @@ const verifyCredentialsOnStartup = async () => {
     try {
       const stored = CredentialsManager.loadCredentials();
       if (stored) {
-        process.env.ONAIR_VA_COMPANY_ID = stored.ONAIR_VA_COMPANY_ID;
-        process.env.ONAIR_VA_API_KEY = stored.ONAIR_VA_API_KEY;
-        process.env.SI_API_KEY = stored.SI_API_KEY;
+        // Load Company credentials
+        if (stored.ONAIR_COMPANY_ID) process.env.ONAIR_COMPANY_ID = stored.ONAIR_COMPANY_ID;
+        if (stored.ONAIR_COMPANY_API_KEY) process.env.ONAIR_COMPANY_API_KEY = stored.ONAIR_COMPANY_API_KEY;
+        // Load VA credentials
+        if (stored.ONAIR_VA_ID) process.env.ONAIR_VA_ID = stored.ONAIR_VA_ID;
+        if (stored.ONAIR_VA_API_KEY) process.env.ONAIR_VA_API_KEY = stored.ONAIR_VA_API_KEY;
+        // Load SI and SimBrief
+        if (stored.SI_API_KEY) process.env.SI_API_KEY = stored.SI_API_KEY;
+        if (stored.SIMBRIEF_PILOT_ID) process.env.SIMBRIEF_PILOT_ID = stored.SIMBRIEF_PILOT_ID;
+        // Legacy field names support
+        if (stored.ONAIR_VA_COMPANY_ID) process.env.ONAIR_VA_COMPANY_ID = stored.ONAIR_VA_COMPANY_ID;
         console.log('[Electron] ✓ Credentials loaded from config');
       }
     } catch (error) {
@@ -1031,8 +1102,20 @@ const verifyCredentialsOnStartup = async () => {
   }
 
   // Check what's still missing
-  const requiredVars = ['ONAIR_VA_COMPANY_ID', 'ONAIR_VA_API_KEY', 'SI_API_KEY'];
-  const missing = requiredVars.filter(v => !process.env[v] || process.env[v].trim() === '');
+  // Need Company credentials (primary) OR VA credentials (fallback), plus SI_API_KEY
+  const hasCompanyCredentials = process.env.ONAIR_COMPANY_ID && process.env.ONAIR_COMPANY_API_KEY;
+  const hasVaCredentials = process.env.ONAIR_VA_ID && process.env.ONAIR_VA_API_KEY;
+  const hasOnAirCredentials = hasCompanyCredentials || hasVaCredentials;
+  const hasSiKey = process.env.SI_API_KEY && process.env.SI_API_KEY.trim() !== '';
+
+  const missing = [];
+  if (!hasCompanyCredentials && !hasVaCredentials) {
+    missing.push('ONAIR_COMPANY_ID');
+    missing.push('ONAIR_COMPANY_API_KEY');
+    missing.push('ONAIR_VA_ID (or Company ID above)');
+    missing.push('ONAIR_VA_API_KEY (or Company API Key above)');
+  }
+  if (!hasSiKey) missing.push('SI_API_KEY');
 
   if (missing.length > 0) {
     console.log('[Electron] Missing credentials:', missing);
@@ -1057,12 +1140,12 @@ const verifyCredentialsOnStartup = async () => {
   // Don't block startup on API verification - window should load immediately
   console.log('[Electron] ✅ Credentials ready - proceeding with startup immediately');
   console.log('[Electron] Running credential verification in background...');
-  
+
   // Fire and forget - verify credentials in background with timeout
   const verifyWithTimeout = async () => {
     try {
       // Add a 3-second timeout to the verification
-      const timeoutPromise = new Promise((resolve) => 
+      const timeoutPromise = new Promise((resolve) =>
         setTimeout(() => resolve({ valid: false, error: 'Verification timeout' }), 3000)
       );
       const verifyPromise = CredentialsVerifier.verifyAllCredentials();
@@ -1255,13 +1338,13 @@ app.on('before-quit', async (event) => {
   console.log('\n========================================');
   console.log('[Electron] Shutdown initiated');
   console.log('========================================\n');
-  
+
   // Prevent immediate quit - we need to show dialog and cleanup
   event.preventDefault();
-  
+
   // Show cleanup dialog and perform full cleanup
   await performFullCleanupWithDialog();
-  
+
   // All cleanup done - now allow quit
   console.log('[Electron] Cleanup complete, exiting...');
   app.exit(0);
@@ -1269,7 +1352,7 @@ app.on('before-quit', async (event) => {
 
 app.on('window-all-closed', () => {
   console.log('[Electron] All windows closed');
-  
+
   // Fallback cleanup in case before-quit didn't run (e.g., force kill)
   // Kill backend if still running
   if (backendProcess && !backendProcess.killed) {
@@ -1277,14 +1360,14 @@ app.on('window-all-closed', () => {
     backendProcess.kill('SIGKILL');
     backendProcess = null;
   }
-  
+
   // Kill dev server if still running
   if (devServerProcess && !devServerProcess.killed) {
     console.log('[Electron] FALLBACK: Killing dev server...');
     devServerProcess.kill('SIGKILL');
     devServerProcess = null;
   }
-  
+
   // Ensure we're really quitting on non-macOS
   if (process.platform !== 'darwin') {
     app.quit();

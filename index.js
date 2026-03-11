@@ -95,6 +95,9 @@ try {
       logBackend('[BACKEND STARTUP] Credentials present:');
       logBackend(`[BACKEND STARTUP]   - ONAIR_VA_COMPANY_ID: ${process.env.ONAIR_VA_COMPANY_ID ? '✓ YES' : '✗ NO'}`);
       logBackend(`[BACKEND STARTUP]   - ONAIR_VA_API_KEY: ${process.env.ONAIR_VA_API_KEY ? '✓ YES' : '✗ NO'}`);
+      logBackend(`[BACKEND STARTUP]   - ONAIR_COMPANY_ID: ${process.env.ONAIR_COMPANY_ID ? '✓ YES' : '✗ NO'}`);
+      logBackend(`[BACKEND STARTUP]   - ONAIR_COMPANY_API_KEY: ${process.env.ONAIR_COMPANY_API_KEY ? '✓ YES' : '✗ NO'}`);
+      logBackend(`[BACKEND STARTUP]   - ONAIR_VA_ID: ${process.env.ONAIR_VA_ID ? '✓ YES' : '✗ NO'}`);
       logBackend(`[BACKEND STARTUP]   - ONAIR_PRIVATE_COMPANY_ID: ${process.env.ONAIR_PRIVATE_COMPANY_ID ? '✓ YES' : '✗ NO'}`);
       logBackend(`[BACKEND STARTUP]   - ONAIR_PRIVATE_API_KEY: ${process.env.ONAIR_PRIVATE_API_KEY ? '✓ YES' : '✗ NO'}`);
       logBackend(`[BACKEND STARTUP]   - SI_API_KEY: ${process.env.SI_API_KEY ? '✓ YES' : '✗ NO'}`);
@@ -158,8 +161,12 @@ logBackend('[BACKEND STARTUP] Creating server instance...');
 const serverConfig = {
   port: process.env.PORT || 3000,
   env: process.env.NODE_ENV || 'development',
-  onairCompanyId: process.env.ONAIR_PRIVATE_COMPANY_ID,
-  onairApiKey: process.env.ONAIR_PRIVATE_API_KEY
+  // Company credentials (primary) - try new field names first, fall back to old
+  onairCompanyId: process.env.ONAIR_COMPANY_ID || process.env.ONAIR_PRIVATE_COMPANY_ID,
+  onairApiKey: process.env.ONAIR_COMPANY_API_KEY || process.env.ONAIR_PRIVATE_API_KEY,
+  // VA credentials (fallback) - should have both ID and API Key
+  onairVaId: process.env.ONAIR_VA_ID,
+  onairVaApiKey: process.env.ONAIR_VA_API_KEY
 };
 
 logBackend('[BACKEND STARTUP] Server config:');
@@ -167,6 +174,8 @@ logBackend('[BACKEND STARTUP]   - port: ' + serverConfig.port);
 logBackend('[BACKEND STARTUP]   - env: ' + serverConfig.env);
 logBackend('[BACKEND STARTUP]   - onairCompanyId: ' + (serverConfig.onairCompanyId ? '✓' : '✗'));
 logBackend('[BACKEND STARTUP]   - onairApiKey: ' + (serverConfig.onairApiKey ? '✓' : '✗'));
+logBackend('[BACKEND STARTUP]   - onairVaId: ' + (serverConfig.onairVaId ? '✓' : '✗'));
+logBackend('[BACKEND STARTUP]   - onairVaApiKey: ' + (serverConfig.onairVaApiKey ? '✓' : '✗'));
 
 try {
   const server = new DispatchServer(serverConfig);
