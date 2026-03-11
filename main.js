@@ -502,7 +502,7 @@ const createWindow = (vitePort = 5173) => {
 
 const startBackendServer = () => {
   return new Promise((resolve) => {
-    // Create a debug log file for Electron main process
+    // Create a debug log file for Electron main process - COMPREHENSIVE LOGGING
     const debugLogPath = path.join(os.homedir(), '.kahunair', 'electron-debug.log');
     const logDebug = (msg) => {
       const timestamp = new Date().toISOString();
@@ -513,101 +513,271 @@ const startBackendServer = () => {
         if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
         fs.appendFileSync(debugLogPath, line);
       } catch (e) {
-        // Fail silently if logging fails
+        console.error('Failed to write debug log:', e.message);
       }
     };
 
-    logDebug('[Electron] Starting backend server...');
+    logDebug('═════════════════════════════════════════════════════════');
+    logDebug('[BACKEND STARTUP] Starting backend server...');
+    logDebug('[BACKEND STARTUP] Time: ' + new Date().toISOString());
+    logDebug('[BACKEND STARTUP] Electron version: ' + process.versions.electron);
+    logDebug('[BACKEND STARTUP] Node version: ' + process.versions.node);
+    
+    // ===== ENVIRONMENT DIAGNOSTICS =====
+    logDebug('[BACKEND STARTUP] ===== ENVIRONMENT DIAGNOSTICS =====');
+    logDebug('[BACKEND STARTUP] Platform: ' + process.platform);
+    logDebug('[BACKEND STARTUP] Architecture: ' + process.arch);
+    logDebug('[BACKEND STARTUP] Node executable: ' + process.execPath);
+    logDebug('[BACKEND STARTUP] Process PID: ' + process.pid);
+    logDebug('[BACKEND STARTUP] Current working directory (process.cwd): ' + process.cwd());
+    logDebug('[BACKEND STARTUP] __dirname: ' + __dirname);
+    logDebug('[BACKEND STARTUP] __filename: ' + __filename);
+    
+    // ===== FILE SYSTEM CHECKS =====
+    logDebug('[BACKEND STARTUP] ===== FILE SYSTEM CHECKS =====');
+    const indexPath = path.join(__dirname, 'index.js');
+    const indexExists = fs.existsSync(indexPath);
+    logDebug('[BACKEND STARTUP] index.js path: ' + indexPath);
+    logDebug('[BACKEND STARTUP] index.js exists: ' + (indexExists ? 'YES ✓' : 'NO ✗ CRITICAL!'));
+    
+    if (indexExists) {
+      const stats = fs.statSync(indexPath);
+      logDebug('[BACKEND STARTUP] index.js size: ' + stats.size + ' bytes');
+      logDebug('[BACKEND STARTUP] index.js modified: ' + stats.mtime.toISOString());
+    }
 
-    const backendCwd = __dirname;
-    logDebug('[Electron] Backend working directory: ' + backendCwd);
-    logDebug('[Electron] Backend script path: ' + path.join(backendCwd, 'index.js'));
-    logDebug('[Electron] index.js exists: ' + require('fs').existsSync(path.join(backendCwd, 'index.js')));
-    logDebug('[Electron] Node path: ' + process.execPath);
-    logDebug('[Electron] Platform: ' + process.platform);
-    logDebug('[Electron] Attempting spawn with cwd: ' + backendCwd);
+    const nodeModulesPath = path.join(__dirname, 'node_modules');
+    const nodeModulesExists = fs.existsSync(nodeModulesPath);
+    logDebug('[BACKEND STARTUP] node_modules path: ' + nodeModulesPath);
+    logDebug('[BACKEND STARTUP] node_modules exists: ' + (nodeModulesExists ? 'YES ✓' : 'NO ✗ CRITICAL!'));
+    
+    if (nodeModulesExists) {
+      const contents = fs.readdirSync(nodeModulesPath).slice(0, 10);
+      logDebug('[BACKEND STARTUP] node_modules contents (first 10): ' + contents.join(', '));
+    }
 
+    const packageJsonPath = path.join(__dirname, 'package.json');
+    logDebug('[BACKEND STARTUP] package.json exists: ' + (fs.existsSync(packageJsonPath) ? 'YES ✓' : 'NO ✗'));
+
+    // ===== SPAWN CONFIGURATION AUDIT =====
+    logDebug('[BACKEND STARTUP] ===== SPAWN CONFIGURATION =====');
+    logDebug('[BACKEND STARTUP] Command: node');
+    logDebug('[BACKEND STARTUP] Arguments: ["index.js"]');
+    logDebug('[BACKEND STARTUP] Options.cwd: ' + __dirname);
+    logDebug('[BACKEND STARTUP] Options.stdio: ["ignore", "pipe", "pipe"]');
+    logDebug('[BACKEND STARTUP] Options.shell: ' + (process.platform === 'win32'));
+    logDebug('[BACKEND STARTUP] Options.detached: false');
+    logDebug('[BACKEND STARTUP] Options.env: (copying process.env)');
+    
+    // ===== ENVIRONMENT VARIABLES (PARTIAL DUMP) =====
+    logDebug('[BACKEND STARTUP] ===== KEY ENVIRONMENT VARIABLES =====');
+    const envKeys = ['PATH', 'NODE_ENV', 'ONAIR_VA_COMPANY_ID', 'ONAIR_VA_API_KEY', 'SI_API_KEY'];
+    envKeys.forEach(key => {
+      const value = process.env[key];
+      if (key.includes('API') || key.includes('KEY')) {
+        logDebug('[BACKEND STARTUP] ' + key + ': ' + (value ? '[SET]' : '[NOT SET]'));
+      } else {
+        logDebug('[BACKEND STARTUP] ' + key + ': ' + (value || '[NOT SET]'));
+      }
+    });
+
+    // ===== ATTEMPT SPAWN =====
+    logDebug('[BACKEND STARTUP] ===== ATTEMPTING SPAWN =====');
+    logDebug('[BACKEND STARTUP] Calling child_process.spawn()...');
+    const spawnStartTime = Date.now();
+
+    let spanwSuccessful = false;
     try {
-      logDebug('[Electron] About to call spawn()...');
+      logDebug('[BACKEND STARTUP] [CHECKPOINT 1] About to invoke spawn()');
+      
       backendProcess = spawn('node', ['index.js'], {
-        cwd: backendCwd,
-        stdio: ['ignore', 'pipe', 'pipe'],  // ignore stdin, pipe stdout and stderr
+        cwd: __dirname,
+        stdio: ['ignore', 'pipe', 'pipe'],
         shell: process.platform === 'win32',
         detached: false,
-        env: {...process.env}  // Explicitly pass environment
+        env: {...process.env}
       });
 
-      logDebug('[Electron] ✓ spawn() call completed successfully, PID: ' + backendProcess.pid);
+      logDebug('[BACKEND STARTUP] [CHECKPOINT 2] spawn() returned successfully');
+      logDebug('[BACKEND STARTUP] Child process PID: ' + backendProcess.pid);
+      logDebug('[BACKEND STARTUP] Child process killed: ' + backendProcess.killed);
+      logDebug('[BACKEND STARTUP] Spawn elapsed time: ' + (Date.now() - spawnStartTime) + 'ms');
+      spanwSuccessful = true;
 
-      backendProcess.stdout?.on('data', (data) => {
-        const output = data.toString().trim();
-        if (output) {
-          logDebug('[Backend] ' + output);
-        }
-      });
+      // ===== STDOUT CAPTURE =====
+      logDebug('[BACKEND STARTUP] ===== SETTING UP STDOUT CAPTURE =====');
+      if (!backendProcess.stdout) {
+        logDebug('[BACKEND STARTUP] ✗ CRITICAL: backendProcess.stdout is null!');
+      } else {
+        logDebug('[BACKEND STARTUP] ✓ backendProcess.stdout is available');
+        
+        backendProcess.stdout.on('data', (data) => {
+          const output = data.toString().trim();
+          if (output) {
+            const lines = output.split('\n');
+            lines.forEach(line => {
+              if (line.trim()) {
+                logDebug('[BACKEND STDOUT] ' + line);
+              }
+            });
+          }
+        });
 
-      backendProcess.stderr?.on('data', (data) => {
-        const output = data.toString().trim();
-        if (output) {
-          logDebug('[Backend Error] ' + output);
-        }
-      });
+        backendProcess.stdout.on('end', () => {
+          logDebug('[BACKEND STARTUP] STDOUT stream ended');
+        });
 
+        backendProcess.stdout.on('error', (err) => {
+          logDebug('[BACKEND STARTUP] STDOUT error: ' + err.message);
+        });
+      }
+
+      // ===== STDERR CAPTURE =====
+      logDebug('[BACKEND STARTUP] ===== SETTING UP STDERR CAPTURE =====');
+      if (!backendProcess.stderr) {
+        logDebug('[BACKEND STARTUP] ✗ CRITICAL: backendProcess.stderr is null!');
+      } else {
+        logDebug('[BACKEND STARTUP] ✓ backendProcess.stderr is available');
+        
+        backendProcess.stderr.on('data', (data) => {
+          const output = data.toString().trim();
+          if (output) {
+            const lines = output.split('\n');
+            lines.forEach(line => {
+              if (line.trim()) {
+                logDebug('[BACKEND STDERR] ' + line);
+              }
+            });
+          }
+        });
+
+        backendProcess.stderr.on('end', () => {
+          logDebug('[BACKEND STARTUP] STDERR stream ended');
+        });
+
+        backendProcess.stderr.on('error', (err) => {
+          logDebug('[BACKEND STARTUP] STDERR error: ' + err.message);
+        });
+      }
+
+      // ===== ERROR EVENT HANDLING =====
+      logDebug('[BACKEND STARTUP] ===== SETTING UP ERROR EVENT HANDLER =====');
       backendProcess.on('error', (err) => {
-        logDebug('[Electron] Failed to start backend (spawn error): ' + err.message);
-        logDebug('[Electron] Error code: ' + err.code);
-        logDebug('[Electron] Error details: ' + JSON.stringify(err));
+        logDebug('[BACKEND STARTUP] ✗✗✗ SPAWN ERROR EVENT FIRED ✗✗✗');
+        logDebug('[BACKEND STARTUP] Error message: ' + err.message);
+        logDebug('[BACKEND STARTUP] Error code: ' + err.code);
+        logDebug('[BACKEND STARTUP] Error errno: ' + err.errno);
+        logDebug('[BACKEND STARTUP] Error syscall: ' + err.syscall);
+        logDebug('[BACKEND STARTUP] Full error: ' + JSON.stringify(err, null, 2));
+        
+        if (err.code === 'ENOENT') {
+          logDebug('[BACKEND STARTUP] → Interpretation: "node" executable not found in PATH');
+          logDebug('[BACKEND STARTUP] → Solution: Verify NODE is installed and accessible from Electron context');
+        } else if (err.code === 'EACCES') {
+          logDebug('[BACKEND STARTUP] → Interpretation: Permission denied');
+          logDebug('[BACKEND STARTUP] → Solution: Check file permissions on index.js and node executable');
+        }
+        
         resolve(false);
       });
 
+      // ===== CLOSE EVENT HANDLING =====
+      logDebug('[BACKEND STARTUP] ===== SETTING UP CLOSE EVENT HANDLER =====');
       backendProcess.on('close', (code, signal) => {
-        logDebug('[Electron] Backend process closed - code: ' + code + ', signal: ' + signal);
-        if (code && code !== 0) {
-          logDebug('[Electron] Non-zero exit code suggests backend startup failure');
+        logDebug('[BACKEND STARTUP] CLOSE EVENT: code=' + code + ', signal=' + signal);
+        if (code === null && signal) {
+          logDebug('[BACKEND STARTUP] Process was killed by signal: ' + signal);
+        } else if (code && code !== 0) {
+          logDebug('[BACKEND STARTUP] Process exited with non-zero code: ' + code);
+          logDebug('[BACKEND STARTUP] → This indicates an error during startup or execution');
+        } else if (code === 0) {
+          logDebug('[BACKEND STARTUP] Process exited normally (code 0)');
         }
       });
 
+      // ===== EXIT EVENT HANDLING =====
+      logDebug('[BACKEND STARTUP] ===== SETTING UP EXIT EVENT HANDLER =====');
       backendProcess.on('exit', (code, signal) => {
-        logDebug('[Electron] Backend process exit event - code: ' + code + ', signal: ' + signal);
+        logDebug('[BACKEND STARTUP] EXIT EVENT: code=' + code + ', signal=' + signal);
       });
+
+      // ===== DISCONNECT EVENT HANDLING =====
+      logDebug('[BACKEND STARTUP] ===== SETTING UP DISCONNECT EVENT HANDLER =====');
+      backendProcess.on('disconnect', () => {
+        logDebug('[BACKEND STARTUP] DISCONNECT EVENT fired');
+      });
+
     } catch (err) {
-      logDebug('[Electron] ❌ Exception during spawn(): ' + err.message);
-      logDebug('[Electron] Stack: ' + err.stack);
+      logDebug('[BACKEND STARTUP] ✗✗✗ EXCEPTION DURING SPAWN ✗✗✗');
+      logDebug('[BACKEND STARTUP] Exception message: ' + err.message);
+      logDebug('[BACKEND STARTUP] Exception code: ' + err.code);
+      logDebug('[BACKEND STARTUP] Exception stack: ' + err.stack);
+      logDebug('[BACKEND STARTUP] Full exception: ' + JSON.stringify(err, null, 2));
       resolve(false);
       return;
     }
 
-    // Wait for backend to be ready by testing health endpoint
-    logDebug('[Electron] Waiting for backend to initialize...');
+    // ===== HEALTH CHECKS =====
+    logDebug('[BACKEND STARTUP] ===== STARTING HEALTH CHECKS =====');
+    logDebug('[BACKEND STARTUP] API endpoint: http://localhost:XXXX/health');
+    logDebug('[BACKEND STARTUP] Port range: 3000-3004');
+    logDebug('[BACKEND STARTUP] Health check interval: 500ms');
+    logDebug('[BACKEND STARTUP] Timeout: 10 seconds');
 
-    const testBackendHealth = async () => {
+    const testBackendHealth = async (attemptNum) => {
+      logDebug('[HEALTH CHECK] ===== ATTEMPT #' + attemptNum + ' =====');
+      
       for (let port = 3000; port <= 3004; port++) {
+        const url = `http://localhost:${port}/health`;
         try {
-          const response = await fetch(`http://localhost:${port}/health`, { timeout: 1000 });
+          logDebug('[HEALTH CHECK] Testing port ' + port + ': ' + url);
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 1000);
+          
+          const response = await fetch(url, { signal: controller.signal });
+          clearTimeout(timeout);
+          
           if (response.ok) {
-            logDebug(`[Electron] Backend health check passed on port ${port}`);
-            resolve(true);
+            logDebug('[HEALTH CHECK] ✓✓✓ HEALTH CHECK PASSED ON PORT ' + port + ' ✓✓✓');
+            logDebug('[HEALTH CHECK] Response status: ' + response.status);
+            logDebug('[HEALTH CHECK] Response statusText: ' + response.statusText);
             return true;
+          } else {
+            logDebug('[HEALTH CHECK] Port ' + port + ': Response status ' + response.status);
           }
         } catch (e) {
-          // Continue to next port
+          logDebug('[HEALTH CHECK] Port ' + port + ': Request failed - ' + e.message);
         }
       }
+      logDebug('[HEALTH CHECK] All ports failed this attempt');
       return false;
     };
 
     const startTime = Date.now();
+    let healthCheckAttempt = 0;
     const healthCheckInterval = setInterval(async () => {
-      const isHealthy = await testBackendHealth();
+      healthCheckAttempt++;
+      const isHealthy = await testBackendHealth(healthCheckAttempt);
+      
       if (isHealthy) {
-        clearInterval(healthCheckInterval);
-      } else if (Date.now() - startTime > 10000) {
-        // 10 second timeout
-        logDebug('[Electron] Backend health check timeout - assuming backend is starting, loading frontend anyway');
+        logDebug('[HEALTH CHECK] ✓ Backend is healthy, clearing interval and resolving');
         clearInterval(healthCheckInterval);
         resolve(true);
+      } else {
+        const elapsed = Date.now() - startTime;
+        logDebug('[HEALTH CHECK] Not healthy yet, elapsed: ' + elapsed + 'ms');
+        
+        if (elapsed > 10000) {
+          logDebug('[HEALTH CHECK] ✗ TIMEOUT after 10 seconds');
+          logDebug('[HEALTH CHECK] Assuming backend is starting, resolving anyway');
+          logDebug('[HEALTH CHECK] Note: Backend may still be initializing, frontend should retry');
+          clearInterval(healthCheckInterval);
+          resolve(true);
+        }
       }
     }, 500);
+
+    logDebug('[BACKEND STARTUP] ═════════════════════════════════════════════════════════');
   });
 };
 
