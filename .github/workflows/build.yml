@@ -22,25 +22,15 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
-        cache: 'npm'
+      env:
+        # Add explicit npm config settings
+        npm_config_build_from_source: "false"
     
-    - name: Diagnostic Information
-      run: |
-        echo "Node version:"
-        node --version
-        echo "NPM version:"
-        npm --version
-        echo "Directory contents:"
-        ls -la
-        echo "Package.json exists:"
-        Test-Path package.json
-        echo "Package-lock.json exists:"
-        Test-Path package-lock.json
-        echo "Package.json content (first 20 lines):"
-        Get-Content package.json -TotalCount 20
+    - name: Clean npm cache
+      run: npm cache clean --force
     
-    - name: Install dependencies
-      run: npm install --legacy-peer-deps --verbose
+    - name: Install dependencies (without legacy peer deps)
+      run: npm install --loglevel verbose
     
     - name: Install frontend dependencies
       run: npm install --legacy-peer-deps --prefix frontend
