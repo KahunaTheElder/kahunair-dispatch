@@ -27,10 +27,8 @@ jobs:
       run: npm install --legacy-peer-deps
     
     - name: Install frontend dependencies
-      run: npm install --prefix frontend
-    
-    - name: Build frontend
-      run: npm run build --prefix frontend
+      env:
+        NODE_ENV: development
     
     - name: Build Electron app
       run: npm run electron-build
