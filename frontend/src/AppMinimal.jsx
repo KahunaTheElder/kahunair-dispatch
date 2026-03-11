@@ -649,7 +649,7 @@ export default function AppMinimal() {
       return (
         <div className="flight-info-bar">
           <div className="flight-info-text">
-            Departure: ---- / ---- <span className="arrow-icon">âžœ</span> ---- / ----: Arrival
+            Departure: ---- / ---- <span className="arrow-icon">✈</span> ---- / ----: Arrival
           </div>
         </div>
       )
@@ -693,7 +693,7 @@ export default function AppMinimal() {
           {route}
         </div>
         <div className="flight-params-text">
-          TOW {flightData.tow}K | BF {flightData.blockFuel}K | AVG WIND {formattedWind} | ISA {isaDisplay}Â°
+          TOW {flightData.tow}K | BF {flightData.blockFuel}K | AVG WIND {formattedWind} | ISA {isaDisplay}°
         </div>
         {(flightData.cargoTypes && flightData.cargoTypes.length > 0) && (
           <div className="flight-cargo-text">
