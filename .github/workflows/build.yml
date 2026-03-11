@@ -22,12 +22,7 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
-      env:
-        # Add explicit npm config settings
-        npm_config_build_from_source: "false"
-    
-    - name: Clean npm cache
-      run: npm cache clean --force
+        cache: 'false'  # Disable npm cache
     
     - name: Install dependencies (without legacy peer deps)
       run: npm install --loglevel verbose
