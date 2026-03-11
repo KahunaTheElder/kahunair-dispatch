@@ -1082,22 +1082,46 @@ const verifyCredentialsOnStartup = async () => {
     console.log('[Electron] No credentials found in environment, checking stored config...');
     try {
       const stored = CredentialsManager.loadCredentials();
+      console.log('[Electron] CredentialsManager returned:', stored ? Object.keys(stored) : 'null');
       if (stored) {
         // Load Company credentials
-        if (stored.ONAIR_COMPANY_ID) process.env.ONAIR_COMPANY_ID = stored.ONAIR_COMPANY_ID;
-        if (stored.ONAIR_COMPANY_API_KEY) process.env.ONAIR_COMPANY_API_KEY = stored.ONAIR_COMPANY_API_KEY;
+        if (stored.ONAIR_COMPANY_ID) {
+          process.env.ONAIR_COMPANY_ID = stored.ONAIR_COMPANY_ID;
+          console.log('[Electron] ✓ Set ONAIR_COMPANY_ID');
+        }
+        if (stored.ONAIR_COMPANY_API_KEY) {
+          process.env.ONAIR_COMPANY_API_KEY = stored.ONAIR_COMPANY_API_KEY;
+          console.log('[Electron] ✓ Set ONAIR_COMPANY_API_KEY');
+        }
         // Load VA credentials
-        if (stored.ONAIR_VA_ID) process.env.ONAIR_VA_ID = stored.ONAIR_VA_ID;
-        if (stored.ONAIR_VA_API_KEY) process.env.ONAIR_VA_API_KEY = stored.ONAIR_VA_API_KEY;
+        if (stored.ONAIR_VA_ID) {
+          process.env.ONAIR_VA_ID = stored.ONAIR_VA_ID;
+          console.log('[Electron] ✓ Set ONAIR_VA_ID');
+        }
+        if (stored.ONAIR_VA_API_KEY) {
+          process.env.ONAIR_VA_API_KEY = stored.ONAIR_VA_API_KEY;
+          console.log('[Electron] ✓ Set ONAIR_VA_API_KEY');
+        }
         // Load SI and SimBrief
-        if (stored.SI_API_KEY) process.env.SI_API_KEY = stored.SI_API_KEY;
-        if (stored.SIMBRIEF_PILOT_ID) process.env.SIMBRIEF_PILOT_ID = stored.SIMBRIEF_PILOT_ID;
+        if (stored.SI_API_KEY) {
+          process.env.SI_API_KEY = stored.SI_API_KEY;
+          console.log('[Electron] ✓ Set SI_API_KEY');
+        }
+        if (stored.SIMBRIEF_PILOT_ID) {
+          process.env.SIMBRIEF_PILOT_ID = stored.SIMBRIEF_PILOT_ID;
+          console.log('[Electron] Set SIMBRIEF_PILOT_ID');
+        }
         // Legacy field names support
-        if (stored.ONAIR_VA_COMPANY_ID) process.env.ONAIR_VA_COMPANY_ID = stored.ONAIR_VA_COMPANY_ID;
-        console.log('[Electron] ✓ Credentials loaded from config');
+        if (stored.ONAIR_VA_COMPANY_ID) {
+          process.env.ONAIR_VA_COMPANY_ID = stored.ONAIR_VA_COMPANY_ID;
+          console.log('[Electron] ✓ Set ONAIR_VA_COMPANY_ID (legacy)');
+        }
+        console.log('[Electron] ✓ All stored credentials loaded');
+      } else {
+        console.log('[Electron] CredentialsManager.loadCredentials() returned null or empty');
       }
     } catch (error) {
-      console.log('[Electron] No stored credentials found:', error.message);
+      console.log('[Electron] Error loading stored credentials:', error.message);
     }
   }
 
@@ -1107,6 +1131,12 @@ const verifyCredentialsOnStartup = async () => {
   const hasVaCredentials = process.env.ONAIR_VA_ID && process.env.ONAIR_VA_API_KEY;
   const hasOnAirCredentials = hasCompanyCredentials || hasVaCredentials;
   const hasSiKey = process.env.SI_API_KEY && process.env.SI_API_KEY.trim() !== '';
+
+  console.log('[Electron] Credential Status:');
+  console.log('[Electron]   hasCompanyCredentials:', hasCompanyCredentials);
+  console.log('[Electron]   hasVaCredentials:', hasVaCredentials);
+  console.log('[Electron]   hasOnAirCredentials:', hasOnAirCredentials);
+  console.log('[Electron]   hasSiKey:', hasSiKey);
 
   const missing = [];
   if (!hasCompanyCredentials && !hasVaCredentials) {
