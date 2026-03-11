@@ -24,8 +24,23 @@ jobs:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
     
+    - name: Diagnostic Information
+      run: |
+        echo "Node version:"
+        node --version
+        echo "NPM version:"
+        npm --version
+        echo "Directory contents:"
+        ls -la
+        echo "Package.json exists:"
+        Test-Path package.json
+        echo "Package-lock.json exists:"
+        Test-Path package-lock.json
+        echo "Package.json content (first 20 lines):"
+        Get-Content package.json -TotalCount 20
+    
     - name: Install dependencies
-      run: npm install --legacy-peer-deps
+      run: npm install --legacy-peer-deps --verbose
     
     - name: Install frontend dependencies
       run: npm install --legacy-peer-deps --prefix frontend
