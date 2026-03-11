@@ -1139,11 +1139,11 @@ const verifyCredentialsOnStartup = async () => {
   console.log('[Electron]   hasSiKey:', hasSiKey);
 
   const missing = [];
-  if (!hasCompanyCredentials && !hasVaCredentials) {
+  if (!hasOnAirCredentials) {
     missing.push('ONAIR_COMPANY_ID');
     missing.push('ONAIR_COMPANY_API_KEY');
-    missing.push('ONAIR_VA_ID (or Company ID above)');
-    missing.push('ONAIR_VA_API_KEY (or Company API Key above)');
+    missing.push('ONAIR_VA_ID');
+    missing.push('ONAIR_VA_API_KEY');
   }
   if (!hasSiKey) missing.push('SI_API_KEY');
 
