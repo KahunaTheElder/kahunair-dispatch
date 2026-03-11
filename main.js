@@ -502,17 +502,33 @@ const createWindow = (vitePort = 5173) => {
 
 const startBackendServer = () => {
   return new Promise((resolve) => {
-    console.log('[Electron] Starting backend server...');
+    // Create a debug log file for Electron main process
+    const debugLogPath = path.join(os.homedir(), '.kahunair', 'electron-debug.log');
+    const logDebug = (msg) => {
+      const timestamp = new Date().toISOString();
+      const line = `[${timestamp}] ${msg}\n`;
+      console.log(msg);
+      try {
+        const dir = path.dirname(debugLogPath);
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        fs.appendFileSync(debugLogPath, line);
+      } catch (e) {
+        // Fail silently if logging fails
+      }
+    };
+
+    logDebug('[Electron] Starting backend server...');
 
     const backendCwd = __dirname;
-    console.log('[Electron] Backend working directory:', backendCwd);
-    console.log('[Electron] Backend script path:', path.join(backendCwd, 'index.js'));
-    console.log('[Electron] index.js exists:', require('fs').existsSync(path.join(backendCwd, 'index.js')));
-    console.log('[Electron] Node path:', process.execPath);
-    console.log('[Electron] Platform:', process.platform);
-    console.log('[Electron] Attempting spawn with cwd:', backendCwd);
+    logDebug('[Electron] Backend working directory: ' + backendCwd);
+    logDebug('[Electron] Backend script path: ' + path.join(backendCwd, 'index.js'));
+    logDebug('[Electron] index.js exists: ' + require('fs').existsSync(path.join(backendCwd, 'index.js')));
+    logDebug('[Electron] Node path: ' + process.execPath);
+    logDebug('[Electron] Platform: ' + process.platform);
+    logDebug('[Electron] Attempting spawn with cwd: ' + backendCwd);
 
     try {
+      logDebug('[Electron] About to call spawn()...');
       backendProcess = spawn('node', ['index.js'], {
         cwd: backendCwd,
         stdio: ['ignore', 'pipe', 'pipe'],  // ignore stdin, pipe stdout and stderr
@@ -521,55 +537,55 @@ const startBackendServer = () => {
         env: {...process.env}  // Explicitly pass environment
       });
 
-      console.log('[Electron] ✓ spawn() call completed successfully, PID:', backendProcess.pid);
+      logDebug('[Electron] ✓ spawn() call completed successfully, PID: ' + backendProcess.pid);
 
       backendProcess.stdout?.on('data', (data) => {
         const output = data.toString().trim();
         if (output) {
-          console.log('[Backend]', output);
+          logDebug('[Backend] ' + output);
         }
       });
 
       backendProcess.stderr?.on('data', (data) => {
         const output = data.toString().trim();
         if (output) {
-          console.error('[Backend Error]', output);
+          logDebug('[Backend Error] ' + output);
         }
       });
 
       backendProcess.on('error', (err) => {
-        console.error('[Electron] Failed to start backend (spawn error):', err.message);
-        console.error('[Electron] Error code:', err.code);
-        console.error('[Electron] Error details:', err);
+        logDebug('[Electron] Failed to start backend (spawn error): ' + err.message);
+        logDebug('[Electron] Error code: ' + err.code);
+        logDebug('[Electron] Error details: ' + JSON.stringify(err));
         resolve(false);
       });
 
       backendProcess.on('close', (code, signal) => {
-        console.error('[Electron] Backend process closed - code:', code, 'signal:', signal);
+        logDebug('[Electron] Backend process closed - code: ' + code + ', signal: ' + signal);
         if (code && code !== 0) {
-          console.error('[Electron] Non-zero exit code suggests backend startup failure');
+          logDebug('[Electron] Non-zero exit code suggests backend startup failure');
         }
       });
 
       backendProcess.on('exit', (code, signal) => {
-        console.log('[Electron] Backend process exit event - code:', code, 'signal:', signal);
+        logDebug('[Electron] Backend process exit event - code: ' + code + ', signal: ' + signal);
       });
     } catch (err) {
-      console.error('[Electron] ❌ Exception during spawn():', err.message);
-      console.error('[Electron] Stack:', err.stack);
+      logDebug('[Electron] ❌ Exception during spawn(): ' + err.message);
+      logDebug('[Electron] Stack: ' + err.stack);
       resolve(false);
       return;
     }
 
     // Wait for backend to be ready by testing health endpoint
-    console.log('[Electron] Waiting for backend to initialize...');
+    logDebug('[Electron] Waiting for backend to initialize...');
 
     const testBackendHealth = async () => {
       for (let port = 3000; port <= 3004; port++) {
         try {
           const response = await fetch(`http://localhost:${port}/health`, { timeout: 1000 });
           if (response.ok) {
-            console.log(`[Electron] Backend health check passed on port ${port}`);
+            logDebug(`[Electron] Backend health check passed on port ${port}`);
             resolve(true);
             return true;
           }
@@ -587,7 +603,7 @@ const startBackendServer = () => {
         clearInterval(healthCheckInterval);
       } else if (Date.now() - startTime > 10000) {
         // 10 second timeout
-        console.log('[Electron] Backend health check timeout - assuming backend is starting, loading frontend anyway');
+        logDebug('[Electron] Backend health check timeout - assuming backend is starting, loading frontend anyway');
         clearInterval(healthCheckInterval);
         resolve(true);
       }
