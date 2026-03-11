@@ -1,0 +1,67 @@
+{
+  "name": "kahunair-dispatch",
+  "version": "0.2.0",
+  "description": "API bridge between OnAir and SayIntentions.AI for MSFS 2024 flight dispatch",
+  "main": "main.js",
+  "homepage": "./",
+  "scripts": {
+    "probe": "node probe-onair-api.js",
+    "dev": "node --watch index.js",
+    "start": "node index.js",
+    "electron": "electron .",
+    "electron-dev": "electron .",
+    "electron-build": "npm run build --prefix frontend && electron-builder --win",
+    "build": "npm run build --prefix frontend"
+  },
+  "keywords": [
+    "msfs",
+    "flight-sim",
+    "dispatch",
+    "onair",
+    "sayintentionsai"
+  ],
+  "author": "KahunaTheElder",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.13.6",
+    "body-parser": "^2.2.2",
+    "compression": "^1.8.1",
+    "cors": "^2.8.6",
+    "dotenv": "^16.6.1",
+    "electron-is-dev": "^3.0.1",
+    "express": "^5.2.1",
+    "uuid": "^13.0.0",
+    "xml2js": "^0.6.2"
+  },
+  "devDependencies": {
+    "concurrently": "latest",
+    "electron": "latest",
+    "electron-builder": "^26.8.1",
+    "wait-on": "latest"
+  },
+  "build": {
+    "appId": "com.kahuna.kahunaair-dispatch",
+    "productName": "KahunaAir Dispatch",
+    "asar": false,
+    "directories": {
+      "buildResources": "assets",
+      "output": "dist-app"
+    },
+    "forceCodeSigning": false,
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.js",
+      ".env",
+      "src/**/*",
+      "frontend/dist/**/*",
+      "node_modules/**/*"
+    ],
+    "win": {
+      "target": [
+        "portable"
+      ],
+      "icon": "assets/icon.png"
+    }
+  }
+}
