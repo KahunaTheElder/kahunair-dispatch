@@ -500,9 +500,9 @@ const createWindow = (vitePort = 5173) => {
   // Create the browser window
   mainWindow = new BrowserWindow({
     width: 1280,
-    height: 1024,
+    height: 720,
     minWidth: 1000,
-    minHeight: 700,
+    minHeight: 720,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,

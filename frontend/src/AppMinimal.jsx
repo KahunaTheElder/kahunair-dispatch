@@ -193,6 +193,40 @@ export default function AppMinimal() {
     // editingCrewId still set — editor stays open
   }
 
+  const handleNewFlight = () => {
+    // Reset all flight state so a new flight can be loaded fresh
+    setFlightData({
+      flightNumber: null,
+      departure: null,
+      arrival: null,
+      alternate: { ICAO: '----', name: '----' },
+      route: '',
+      tow: '----',
+      blockFuel: '----',
+      avgWindDir: '---',
+      avgWindSpd: '---',
+      isaDeviation: '---',
+      cargoWeight: 0,
+      cargoUoM: 'lbs',
+      cargoTypes: [],
+      passengerTypes: []
+    })
+    setProcedures({
+      departure: { runway: '---', sid: '---' },
+      arrival: { runway: '---', star: '---' }
+    })
+    setCrew(null)
+    setCrewProfiles({})
+    setCargoCharter({ cargos: [], charters: [] })
+    setCargoStatus('IDLE')
+    setNoFlight(true)
+    setCrewQueue([])
+    setQueueIndex(0)
+    setEditingCrewId(null)
+    setSiSendStatus('idle')
+    setSkipConfirm(null)
+  }
+
   const handleExit = async () => {
     console.log('[AppMinimal] Exit requested')
     try {
@@ -1197,6 +1231,12 @@ export default function AppMinimal() {
           ✕ EXIT
         </button>
       </footer>
+
+      <div className="new-flight-btn-container">
+        <button className="new-flight-button" onClick={handleNewFlight} title="Reset for a new flight">
+          ✈ NEW FLIGHT
+        </button>
+      </div>
 
       {/* Settings modal */}
       {showSettings && (
