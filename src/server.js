@@ -1160,7 +1160,11 @@ class DispatchServer {
           message: 'Sent to SayIntentions.AI',
           crewCount: crewMembers.length,
           profilesLoaded: Object.keys(crewProfilesMap).length,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          // Full diagnostic info so the frontend can show what was sent and received
+          sentPayload: { crew_data, copilot_data, dispatcher_data },
+          siRawResponse: siResponse.data,
+          siHttpStatus: siResponse.status
         });
       } catch (error) {
         const isAxiosError = error.isAxiosError || error.response;
@@ -1174,8 +1178,59 @@ class DispatchServer {
           message: isAxiosError
             ? `SI API error (${statusCode}): ${JSON.stringify(siMessage)}`
             : error.message,
-          error: error.message
+          error: error.message,
+          siRawResponse: siMessage,
+          siHttpStatus: statusCode
         });
+      }
+    });
+
+    /**
+     * GET /api/dispatch/si-preview
+     * Assemble the SI importVAData payload WITHOUT sending it.
+     * Returns the full crew_data, copilot_data, dispatcher_data strings
+     * so the operator can inspect exactly what would be sent to SI.
+     */
+    this.app.get('/api/dispatch/si-preview', async (req, res) => {
+      try {
+        const siPayloadBuilder = require('./siPayloadBuilder');
+        const CrewProfileManager = require('./crewProfileManager');
+        const fs = require('fs');
+        const path = require('path');
+
+        const activeFlights = await this.flightService.getActiveKahunaFlights();
+        if (!activeFlights || activeFlights.length === 0) {
+          return res.status(404).json({ success: false, error: 'No active flight' });
+        }
+        const flight = this.formatFlightResponse(activeFlights[0]);
+        const crewMembers = flight.crew?.members || [];
+
+        const crewManager = new CrewProfileManager();
+        const crewProfilesMap = {};
+        for (const member of crewMembers) {
+          const profileId = member.isMe ? 'my-pilot' : member.id;
+          const result = crewManager.load(profileId);
+          if (result.success && result.profile) crewProfilesMap[profileId] = result.profile;
+        }
+
+        let vaProfile = null;
+        try {
+          const vaProfilePath = path.join(__dirname, 'data', 'va-profiles', 'kahuna-air.json');
+          if (fs.existsSync(vaProfilePath)) vaProfile = JSON.parse(fs.readFileSync(vaProfilePath, 'utf8'));
+        } catch (e) {}
+
+        const { crew_data, copilot_data, dispatcher_data } = siPayloadBuilder.assembleVAPayload(
+          crewProfilesMap, crewMembers, flight, vaProfile, null
+        );
+
+        return res.json({
+          success: true,
+          note: 'Preview only — not sent to SI',
+          crewMembers: crewMembers.map(m => ({ name: m.name, role: m.role, id: m.isMe ? 'my-pilot' : m.id, hasProfile: !!crewProfilesMap[m.isMe ? 'my-pilot' : m.id] })),
+          sentPayload: { crew_data, copilot_data, dispatcher_data }
+        });
+      } catch (error) {
+        return res.status(500).json({ success: false, error: error.message });
       }
     });
 

@@ -50,6 +50,8 @@ export default function AppMinimal() {
   const [queueIndex, setQueueIndex] = useState(0)      // current position in queue
   const [skipConfirm, setSkipConfirm] = useState(null) // crewId pending skip confirm, or null
   const [siSendStatus, setSiSendStatus] = useState('idle') // idle | sending | sent | error
+  const [siDebugInfo, setSiDebugInfo] = useState(null)   // { sentPayload, siRawResponse, siHttpStatus, timestamp }
+  const [showSiDebug, setShowSiDebug] = useState(false)  // toggle debug panel
 
   // Settings modal state
   const [showSettings, setShowSettings] = useState(false)
@@ -116,16 +118,26 @@ export default function AppMinimal() {
         signal: AbortSignal.timeout(20000)
       })
       const data = await res.json()
+      // Store full diagnostic info regardless of outcome
+      setSiDebugInfo({
+        sentPayload: data.sentPayload || null,
+        siRawResponse: data.siRawResponse,
+        siHttpStatus: data.siHttpStatus,
+        siStatus: data.siStatus,
+        message: data.message,
+        timestamp: data.timestamp || new Date().toISOString()
+      })
       if (res.ok && data.success) {
-        console.log('[AppMinimal] ✓ SI send success:', data.siStatus)
+        console.log('[AppMinimal] ✓ SI send success:', data.siStatus, data.siRawResponse)
         setSiSendStatus('sent')
       } else {
-        console.error('[AppMinimal] SI send failed:', data.message)
+        console.error('[AppMinimal] SI send failed:', data.message, data.siRawResponse)
         setSiSendStatus('error')
       }
     } catch (error) {
       console.error('[AppMinimal] SI send error:', error.message)
       setSiSendStatus('error')
+      setSiDebugInfo({ message: error.message, timestamp: new Date().toISOString() })
     }
   }
 
@@ -1047,13 +1059,13 @@ export default function AppMinimal() {
     const firstOfficer = crew.members.find(m => m.role === 'First Officer')
     const attendants = crew.members.filter(m => m.role === 'Flight Attendant')
 
-    // SI status badge
+    // SI status badge (clickable if we have debug info)
     const siBadge = siSendStatus === 'sent'
-      ? <span style={{ marginLeft: '10px', fontSize: '11px', color: '#4ade80', fontWeight: 600 }}>✓ Sent to SI</span>
+      ? <span onClick={() => setShowSiDebug(v => !v)} style={{ marginLeft: '10px', fontSize: '11px', color: '#4ade80', fontWeight: 600, cursor: siDebugInfo ? 'pointer' : 'default', textDecoration: siDebugInfo ? 'underline dotted' : 'none' }}>✓ Sent to SI {siDebugInfo ? '(details)' : ''}</span>
       : siSendStatus === 'sending'
       ? <span style={{ marginLeft: '10px', fontSize: '11px', color: '#fbbf24', fontWeight: 600 }}>⟳ Sending...</span>
       : siSendStatus === 'error'
-      ? <span style={{ marginLeft: '10px', fontSize: '11px', color: '#f87171', fontWeight: 600 }}>⚠ SI Error</span>
+      ? <span onClick={() => setShowSiDebug(v => !v)} style={{ marginLeft: '10px', fontSize: '11px', color: '#f87171', fontWeight: 600, cursor: siDebugInfo ? 'pointer' : 'default', textDecoration: siDebugInfo ? 'underline dotted' : 'none' }}>⚠ SI Error {siDebugInfo ? '(details)' : ''}</span>
       : null
 
     return (
@@ -1101,8 +1113,54 @@ export default function AppMinimal() {
     )
   }
 
+  // SI Debug Panel — shows what was sent to SI and the raw response
+  const SIDebugPanel = () => {
+    if (!showSiDebug || !siDebugInfo) return null
+    const payload = siDebugInfo.sentPayload
+    return (
+      <div style={{
+        position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.88)', zIndex: 9500,
+        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px'
+      }}>
+        <div style={{
+          backgroundColor: '#0a0e1a', border: '1px solid #1e3a5f', borderRadius: '8px',
+          padding: '20px', width: '100%', maxWidth: '860px', maxHeight: '88vh',
+          overflowY: 'auto', fontFamily: 'monospace'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+            <h3 style={{ margin: 0, color: '#60a5fa', fontSize: '13px', fontWeight: 700, letterSpacing: '0.05em' }}>SI PAYLOAD INSPECTOR</h3>
+            <button onClick={() => setShowSiDebug(false)} style={{ background: 'none', border: 'none', color: '#6b7280', fontSize: '16px', cursor: 'pointer' }}>✕</button>
+          </div>
+
+          {/* Response summary */}
+          <div style={{ marginBottom: '14px', padding: '10px', backgroundColor: '#0f1623', borderRadius: '6px', border: '1px solid #1e3a5f' }}>
+            <div style={{ fontSize: '11px', color: '#9ca3af', marginBottom: '4px' }}>RESPONSE</div>
+            <div style={{ fontSize: '12px', color: siDebugInfo.siStatus === 'error' || siSendStatus === 'error' ? '#f87171' : '#4ade80' }}>
+              HTTP {siDebugInfo.siHttpStatus || '?'} — {siDebugInfo.message || '(no message)'}
+            </div>
+            <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '4px' }}>Raw: {JSON.stringify(siDebugInfo.siRawResponse)}</div>
+            <div style={{ fontSize: '10px', color: '#4b5563', marginTop: '4px' }}>{siDebugInfo.timestamp}</div>
+          </div>
+
+          {/* Payload sections */}
+          {payload ? [['crew_data', 'CREW DATA'], ['copilot_data', 'COPILOT DATA'], ['dispatcher_data', 'DISPATCHER DATA']].map(([key, label]) => (
+            <div key={key} style={{ marginBottom: '12px' }}>
+              <div style={{ fontSize: '10px', color: '#60a5fa', letterSpacing: '0.08em', marginBottom: '4px' }}>{label}</div>
+              <pre style={{
+                margin: 0, padding: '10px', backgroundColor: '#0f1623', borderRadius: '4px',
+                border: '1px solid #1e3a5f', fontSize: '11px', color: '#d1d5db',
+                whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.5
+              }}>{payload[key] || '(empty)'}</pre>
+            </div>
+          )) : <div style={{ color: '#6b7280', fontSize: '12px' }}>No payload data captured (send failed before payload was assembled)</div>}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="app-minimal">
+      <SIDebugPanel />
       <div className="top-bar">
         <TelemetryDisplay />
         <div className="status-indicators">
