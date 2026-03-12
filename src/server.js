@@ -1044,13 +1044,19 @@ class DispatchServer {
         if (fs.existsSync(flightJsonPath)) {
           try {
             const flightJson = JSON.parse(fs.readFileSync(flightJsonPath, 'utf8'));
-            const callsign = flightJson?.flight_details?.callsign || null;
-            return res.json({ running: true, callsign });
+            const fd = flightJson?.flight_details || {};
+            return res.json({
+              running: true,
+              callsign: fd.callsign || null,
+              flight_id: fd.flight_id ?? null,
+              on_ground: fd.on_ground ?? null,
+              current_airport: fd.current_airport || null
+            });
           } catch {
-            return res.json({ running: true, callsign: null }); // file exists but unreadable
+            return res.json({ running: true, callsign: null, flight_id: null, on_ground: null, current_airport: null });
           }
         } else {
-          return res.json({ running: false, callsign: null });
+          return res.json({ running: false, callsign: null, flight_id: null, on_ground: null, current_airport: null });
         }
       } catch (e) {
         return res.json({ running: false, callsign: null, error: e.message });

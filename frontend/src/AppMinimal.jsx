@@ -98,6 +98,8 @@ export default function AppMinimal() {
   const closeSiDebug = useCallback(() => setShowSiDebug(false), [])
   const [siRunning, setSiRunning] = useState(null)       // null=unknown, true=running, false=not running
   const pendingSISendRef = useRef(null)                  // crew members queued to send once SI comes up
+  const siFlightIdRef = useRef(null)                    // last known flight_id — changes on new SI session
+  const siSentSessionRef = useRef(false)                // true after a successful send this Kahuna session
 
   // Settings modal state
   const [showSettings, setShowSettings] = useState(false)
@@ -193,6 +195,7 @@ export default function AppMinimal() {
       if (res.ok && data.success) {
         console.log('[AppMinimal] ✓ SI send success:', data.siStatus, data.siRawResponse)
         setSiSendStatus('sent')
+        siSentSessionRef.current = true
       } else {
         console.error('[AppMinimal] SI send failed:', data.message, data.siRawResponse)
         setSiSendStatus('error')
@@ -301,6 +304,7 @@ export default function AppMinimal() {
     setEditingCrewId(null)
     setSiSendStatus('idle')
     pendingSISendRef.current = null
+    siSentSessionRef.current = false
     setSkipConfirm(null)
   }
 
@@ -437,6 +441,15 @@ export default function AppMinimal() {
               const siData = await siRes.json()
               setSiRunning(siData.running)
               setSiStatus(siData.running ? 'online' : 'warning')
+              // Detect flight_id rotation → new SI session started
+              if (siData.running && siData.flight_id != null) {
+                const prev = siFlightIdRef.current
+                if (prev !== null && prev !== siData.flight_id && siSentSessionRef.current) {
+                  // New SI session detected after a successful send → data is now active
+                  setSiSendStatus('applied')
+                }
+                siFlightIdRef.current = siData.flight_id
+              }
             }
           } catch {
             setSiRunning(null)
@@ -1145,8 +1158,10 @@ export default function AppMinimal() {
     const attendants = crew.members.filter(m => m.role === 'Flight Attendant')
 
     // SI status badge (clickable if we have debug info)
-    const siBadge = siSendStatus === 'sent'
-      ? <span onClick={() => setShowSiDebug(v => !v)} style={{ marginLeft: '10px', fontSize: '11px', color: '#4ade80', fontWeight: 600, cursor: siDebugInfo ? 'pointer' : 'default', textDecoration: siDebugInfo ? 'underline dotted' : 'none' }}>✓ Sent to SI {siDebugInfo ? '(details)' : ''}</span>
+    const siBadge = siSendStatus === 'applied'
+      ? <span onClick={() => setShowSiDebug(v => !v)} style={{ marginLeft: '10px', fontSize: '11px', color: '#4ade80', fontWeight: 600, cursor: siDebugInfo ? 'pointer' : 'default', textDecoration: siDebugInfo ? 'underline dotted' : 'none' }}>✓ Active in new session! {siDebugInfo ? '(details)' : ''}</span>
+      : siSendStatus === 'sent'
+      ? <span onClick={() => setShowSiDebug(v => !v)} style={{ marginLeft: '10px', fontSize: '11px', color: '#86efac', fontWeight: 600, cursor: siDebugInfo ? 'pointer' : 'default', textDecoration: siDebugInfo ? 'underline dotted' : 'none' }}>✓ Sent — applies next SI flight {siDebugInfo ? '(details)' : ''}</span>
       : siSendStatus === 'sending'
       ? <span style={{ marginLeft: '10px', fontSize: '11px', color: '#fbbf24', fontWeight: 600 }}>⟳ Sending...</span>
       : siSendStatus === 'waiting'
@@ -1341,6 +1356,7 @@ export default function AppMinimal() {
         >
           {siSendStatus === 'sending' ? '⏳ SENDING...'
             : siSendStatus === 'waiting' ? '⏳ WAITING FOR SI...'
+            : siSendStatus === 'applied' ? '✓ ACTIVE — RESEND?'
             : '↺ RESEND TO SI'}
         </button>
         <button className="new-flight-button" onClick={handleNewFlight} title="Reset for a new flight">
