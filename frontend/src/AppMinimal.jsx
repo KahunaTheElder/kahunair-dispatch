@@ -43,6 +43,7 @@ export default function AppMinimal() {
   const [crewProfiles, setCrewProfiles] = useState({}) // crewId -> profile mapping
   const [cargoCharter, setCargoCharter] = useState({ cargos: [], charters: [] }) // NEW: Cargo/Charter data
   const [cargoStatus, setCargoStatus] = useState('IDLE') // IDLE | AWAITING_OA_START | LOADING | READY
+  const [noFlight, setNoFlight] = useState(false) // true when OA returns no active flight
 
   // Crew profile editor queue state
   const [crewQueue, setCrewQueue] = useState([])       // ordered list of { crewId, member } needing profiles
@@ -232,6 +233,38 @@ export default function AppMinimal() {
             console.log(`[AppMinimal] ✓ Found backend at ${url}`)
             setApiUrl(url)
             setBackendStatus('online')
+
+            // Auto-open settings modal if any required field is missing
+            try {
+              const sRes = await fetch(`${url}/api/settings`, { signal: AbortSignal.timeout(5000) })
+              if (sRes.ok) {
+                const sData = await sRes.json()
+                const d = sData.data || {}
+                const required = ['siApiKey', 'oaCompanyId', 'oaApiKey', 'oaVaId', 'oaVaApiKey', 'simBriefPilotId']
+                const missing = required.some(f => !d[f])
+                if (missing) {
+                  // Pre-fill form and open
+                  setSettingsForm({
+                    siApiKey: d.siApiKey || '',
+                    oaCompanyId: d.oaCompanyId || '',
+                    oaApiKey: d.oaApiKey || '',
+                    oaVaId: d.oaVaId || '',
+                    oaVaApiKey: d.oaVaApiKey || '',
+                    oaPilotId: d.oaPilotId || '',
+                    simBriefPilotId: d.simBriefPilotId || ''
+                  })
+                  setSettingsSaveStatus('idle')
+                  setShowSettings(true)
+                }
+              } else {
+                // 404 or error → definitely missing, open modal blank
+                setSettingsSaveStatus('idle')
+                setShowSettings(true)
+              }
+            } catch (e) {
+              console.warn('[AppMinimal] Settings check failed:', e.message)
+            }
+
             return
           }
         } catch (e) {
@@ -335,7 +368,7 @@ export default function AppMinimal() {
     return () => clearInterval(interval)
   }, [apiUrl])
 
-  // Poll flight data from /api/flights/active (includes crew) - every 10 seconds
+  // Poll flight data from /api/flights/active (includes crew) - every 60 seconds
   useEffect(() => {
     const pollFlight = async () => {
       try {
@@ -345,6 +378,7 @@ export default function AppMinimal() {
         if (res.ok) {
           const json = await res.json()
           if (json.success && json.flights && json.flights.length > 0) {
+            setNoFlight(false)
             const activeFlight = json.flights[0]
             console.log('[AppMinimal] Active flight:', activeFlight.id, activeFlight.route?.departure?.ICAO, activeFlight.route?.arrival?.ICAO)
             // Extract crew data (changes frequently)
@@ -376,6 +410,8 @@ export default function AppMinimal() {
             } catch (err) {
               // Silently fail cargo/charter - optional feature
             }
+          } else {
+            setNoFlight(true)
           }
         }
       } catch (error) {
@@ -386,8 +422,8 @@ export default function AppMinimal() {
     // Initial poll
     pollFlight()
 
-    // Set up interval (every 10 seconds for crew changes)
-    const interval = setInterval(pollFlight, 10000)
+    // Set up interval (every 60 seconds)
+    const interval = setInterval(pollFlight, 60000)
     return () => clearInterval(interval)
   }, [apiUrl])
 
@@ -588,6 +624,14 @@ export default function AppMinimal() {
 
   // NEW: Cargo & Charter Display Component
   const CargoCharterDisplay = () => {
+    if (noFlight) {
+      return (
+        <div className="cargo-charter-section">
+          <div className="cargo-status-message" style={{ color: '#6b7280', fontStyle: 'italic' }}>Waiting for OnAir Flight...</div>
+        </div>
+      )
+    }
+
     if (cargoStatus === 'AWAITING_OA_START') {
       return (
         <div className="cargo-charter-section">
