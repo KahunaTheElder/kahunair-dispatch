@@ -12,12 +12,13 @@
 /**
  * Build crew_data string (captain intro + all FAs + VA culture)
  * @param {Object} captainProfile - my-pilot profile
- * @param {Object[]} faProfiles - Array of FA profiles
+ * @param {Object[]} faProfiles - Array of FA profiles (fully saved)
  * @param {Object} flight - Formatted flight object from server
  * @param {Object} vaProfile - VA profile from kahuna-air.json
+ * @param {Object[]} faMembers - Raw FA crew member list (for fallback name listing)
  * @returns {string}
  */
-function buildCrewData(captainProfile, faProfiles, flight, vaProfile) {
+function buildCrewData(captainProfile, faProfiles, flight, vaProfile, faMembers = []) {
   const va = vaProfile || {};
   const vaName = va.name || 'Kahuna Air Industries';
   const aircraft = flight?.aircraft?.displayName || flight?.aircraft?.type || 'Unknown Aircraft';
@@ -45,7 +46,9 @@ function buildCrewData(captainProfile, faProfiles, flight, vaProfile) {
   }
 
   // Flight Attendants
-  if (faProfiles && faProfiles.length > 0) {
+  const profiledFaNames = new Set(faProfiles.map(f => f?.name).filter(Boolean));
+  const allFaCount = Math.max(faProfiles.length, faMembers.length);
+  if (allFaCount > 0) {
     lines.push('CABIN CREW:');
     for (const fa of faProfiles) {
       if (!fa) continue;
@@ -55,6 +58,12 @@ function buildCrewData(captainProfile, faProfiles, flight, vaProfile) {
       if (faCabin.serviceStyle) lines.push(`    Service Style: ${faCabin.serviceStyle}`);
       if (faBg.specialty) lines.push(`    Specialty: ${faBg.specialty}`);
       if (faBg.certifications?.length) lines.push(`    Certs: ${faBg.certifications.join(', ')}`);
+    }
+    // List any FAs that don't have a full profile yet (name only)
+    for (const member of faMembers) {
+      if (!profiledFaNames.has(member.name)) {
+        lines.push(`  ${member.name} — (profile pending)`);
+      }
     }
     lines.push('');
   }
@@ -208,7 +217,7 @@ function assembleVAPayload(crewProfilesMap, crewMembers, flight, vaProfile, ofpD
     })
     .filter(Boolean);
 
-  const crew_data = buildCrewData(captainProfile, faProfiles, flight, vaProfile);
+  const crew_data = buildCrewData(captainProfile, faProfiles, flight, vaProfile, faMembers);
   const copilot_data = buildCopilotData(foProfile, captainProfile, flight, ofpData);
   const dispatcher_data = buildDispatcherData(flight, vaProfile);
 

@@ -3097,8 +3097,12 @@ class DispatchServer {
           role: crewRole,
           companyId: crew.People?.CompanyId || crew.CompanyId,
           isKahuna: isKahuna,
-          // Captain role is always the user — used by crew queue to route profile to my-pilot
-          isMe: isKahuna || crewRole === 'Captain',
+          // isMe: true ONLY for the user's own OnAir character:
+          //   - roleValue 0 (OnAir always places the user in slot 0), OR
+          //   - company ID matches Kahuna's personal company
+          // Do NOT use crewRole === 'Captain' — that string is set AFTER name-override
+          // and could incorrectly flag AI-hired crew as the user.
+          isMe: roleValue === 0 || isKahuna,
           // Career flight hours (total before hiring + company hours for founders)
           hours: Math.round(careerHours),
           // Career landings (total across all companies)
