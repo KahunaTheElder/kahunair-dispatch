@@ -90,7 +90,9 @@ module.exports = {
   loadCredentials: () => {
     try {
       if (fs.existsSync(configFile)) {
-        const data = fs.readFileSync(configFile, 'utf-8');
+        let data = fs.readFileSync(configFile, 'utf-8');
+        // Strip UTF-8 BOM if present (PowerShell writes files with BOM by default)
+        if (data.charCodeAt(0) === 0xFEFF) data = data.slice(1);
         const creds = JSON.parse(data);
         console.log('[CredentialsManager] Returning credentials:', Object.keys(creds));
         return {
