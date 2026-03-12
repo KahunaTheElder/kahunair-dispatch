@@ -405,7 +405,6 @@ class DispatchServer {
             message: 'Pre-filled from legacy credentials (not yet saved to encrypted store)',
             data: {
               siApiKey: oldCreds.SI_API_KEY || '',
-              siVaApiKey: oldCreds.SI_VA_API_KEY || '',
               oaCompanyId: oldCreds.ONAIR_COMPANY_ID || '',
               oaApiKey: oldCreds.ONAIR_COMPANY_API_KEY || '',
               oaVaId: oldCreds.ONAIR_VA_ID || '',
@@ -1068,23 +1067,13 @@ class DispatchServer {
         }
 
         const siApiKey = settingsResult.data?.siApiKey || '';
-        const siVaApiKey = settingsResult.data?.siVaApiKey || '';
 
         if (!siApiKey) {
           return res.status(400).json({
             success: false,
             siStatus: 'error',
-            message: 'SI API key not configured',
-            error: 'Configure siApiKey in settings'
-          });
-        }
-
-        if (!siVaApiKey) {
-          return res.status(400).json({
-            success: false,
-            siStatus: 'error',
-            message: 'SI VA API key not configured',
-            error: 'Configure siVaApiKey in settings — required for importVAData'
+            message: 'SI VA Key not configured',
+            error: 'Configure siApiKey (SI VA Key) in settings'
           });
         }
 
@@ -1142,7 +1131,7 @@ class DispatchServer {
         );
 
         const payload = {
-          va_api_key: siVaApiKey || undefined,
+          va_api_key: siApiKey,
           crew_data,
           copilot_data,
           dispatcher_data
