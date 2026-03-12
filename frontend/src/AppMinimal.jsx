@@ -943,7 +943,7 @@ export default function AppMinimal() {
       'casual': '#8b5cf6',
       'humorous': '#ec4899',
       'standard': '#6b7280'
-    }[profile?.personality] || '#6b7280'
+    }[profile?.personality?.style] || '#6b7280'
 
     return (
       <div className="crew-card">
@@ -963,7 +963,7 @@ export default function AppMinimal() {
         </div>
         <div className="crew-personality">
           <div className="personality-badge" style={{ backgroundColor: personalityColor }}>
-            {profile?.personality || 'standard'}
+            {profile?.personality?.style || 'standard'}
           </div>
           <button className="crew-edit-btn" onClick={() => onEdit(crewId)}>
             Edit
