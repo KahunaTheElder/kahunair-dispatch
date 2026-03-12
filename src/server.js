@@ -3051,6 +3051,15 @@ class DispatchServer {
   }
 
   formatFlightResponse(flight) {
+    // Load configured oaPilotId from settings — used as primary isMe indicator.
+    // Evaluated once here (require() is cached) before the crew map.
+    let configuredPilotId = null;
+    try {
+      const sm = require('./settingsManager');
+      const s = sm.load();
+      configuredPilotId = s.success ? (s.data?.oaPilotId || null) : null;
+    } catch (e) {}
+
     // Extract crew member details with detailed logging
     let crewMembers = [];
 
@@ -3090,6 +3099,7 @@ class DispatchServer {
         }
 
         const isKahuna = (crew.People?.CompanyId || crew.CompanyId) === '5597c4b6-8f0b-4bbd-a13e-42f8a6e04026';
+        const peopleId = crew.People?.Id;
         const extracted = {
           id: crew.Id,
           name: crewName,
@@ -3097,12 +3107,13 @@ class DispatchServer {
           role: crewRole,
           companyId: crew.People?.CompanyId || crew.CompanyId,
           isKahuna: isKahuna,
-          // isMe: true ONLY for the user's own OnAir character:
-          //   - roleValue 0 (OnAir always places the user in slot 0), OR
-          //   - company ID matches Kahuna's personal company
-          // Do NOT use crewRole === 'Captain' — that string is set AFTER name-override
-          // and could incorrectly flag AI-hired crew as the user.
-          isMe: roleValue === 0 || isKahuna,
+          // isMe: true ONLY for the user's own OnAir character.
+          // Primary: oaPilotId setting matches People.Id (most reliable — unique per pilot)
+          // Fallback: crew name contains 'kahuna' (user's OnAir Pseudo)
+          // REMOVED: roleValue===0 — unreliable, any hired crew can occupy slot 0
+          // REMOVED: isKahuna company ID — matches ALL Kahuna Air crew members, not just user
+          isMe: (configuredPilotId && peopleId && configuredPilotId === peopleId) ||
+                crewName.toLowerCase().includes('kahuna'),
           // Career flight hours (total before hiring + company hours for founders)
           hours: Math.round(careerHours),
           // Career landings (total across all companies)

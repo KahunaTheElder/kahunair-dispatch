@@ -1203,7 +1203,7 @@ export default function AppMinimal() {
         crewId={skipConfirm ? null : editingCrewId}
         crewName={
           editingCrewId === 'my-pilot'
-            ? crew?.members?.find(m => m.isMe || m.role === 'Captain')?.name
+            ? (crew?.members?.find(m => m.isMe) ?? crew?.members?.find(m => m.role === 'Captain'))?.name
             : crew?.members?.find(m => m.id === editingCrewId)?.name
         }
         crewRole={
@@ -1213,12 +1213,12 @@ export default function AppMinimal() {
         }
         crewHours={
           editingCrewId === 'my-pilot'
-            ? (crew?.members?.find(m => m.isMe || m.role === 'Captain')?.hours || 0)
+            ? ((crew?.members?.find(m => m.isMe) ?? crew?.members?.find(m => m.role === 'Captain'))?.hours || 0)
             : (crew?.members?.find(m => m.id === editingCrewId)?.hours || 0)
         }
         crewFlights={
           editingCrewId === 'my-pilot'
-            ? (crew?.members?.find(m => m.isMe || m.role === 'Captain')?.flights || 0)
+            ? ((crew?.members?.find(m => m.isMe) ?? crew?.members?.find(m => m.role === 'Captain'))?.flights || 0)
             : (crew?.members?.find(m => m.id === editingCrewId)?.flights || 0)
         }
         profile={crewProfiles[editingCrewId]}
@@ -1251,7 +1251,7 @@ export default function AppMinimal() {
               Skipping{' '}
               <strong style={{ color: '#e5e7eb' }}>
                 {skipConfirm === 'my-pilot'
-                  ? (crew?.members?.find(m => m.isMe || m.role === 'Captain')?.name || 'Captain')
+                  ? ((crew?.members?.find(m => m.isMe) ?? crew?.members?.find(m => m.role === 'Captain'))?.name || 'Captain')
                   : (crew?.members?.find(m => m.id === skipConfirm)?.name || skipConfirm)}
               </strong>
               {' '}will send incomplete data to SayIntentions.AI.
