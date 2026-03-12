@@ -1005,10 +1005,10 @@ const _setupIpcHandlers = (window) => {
     }
   });
 
-  // Handle open-dev-tools request from frontend (dev mode only)
+  // Handle open-dev-tools request from frontend (available in all modes for debugging)
   ipcMain.on('open-dev-tools', () => {
     console.log('[IPC] Received open-dev-tools request from frontend');
-    if (isDev && window) {
+    if (window) {
       window.webContents.openDevTools();
     }
   });

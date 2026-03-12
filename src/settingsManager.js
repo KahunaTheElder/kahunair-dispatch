@@ -122,14 +122,15 @@ class SettingsManager {
         };
       }
 
-      // Validate required fields
-      const missingFields = this.encryptedFields.filter(f => !settings[f]);
+      // Validate required fields — oaPilotId is optional metadata, not required for core function
+      const optionalFields = ['oaPilotId'];
+      const missingFields = this.encryptedFields.filter(f => !optionalFields.includes(f) && !settings[f]);
       if (missingFields.length > 0) {
         return {
           success: false,
           message: 'Missing required credentials',
           error: `Missing fields: ${missingFields.join(', ')}`,
-          recovery: `Provide all required credentials: ${this.encryptedFields.join(', ')}`
+          recovery: `Provide all required credentials: ${this.encryptedFields.filter(f => !optionalFields.includes(f)).join(', ')}`
         };
       }
 

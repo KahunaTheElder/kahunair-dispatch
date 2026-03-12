@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react'
+﻿import React, { useState, useEffect, useRef } from 'react'
 import './AppMinimal.css'
 import CrewProfileEditorV2 from './components/CrewProfileEditorV2'
 
@@ -217,6 +217,15 @@ export default function AppMinimal() {
     }
   }
   const [editingCrewId, setEditingCrewId] = useState(null) // Currently editing crew ID
+  const editingCrewIdRef = useRef(null) // Always-current editingCrewId for async callbacks
+  useEffect(() => { editingCrewIdRef.current = editingCrewId }, [editingCrewId])
+
+  // F12 opens DevTools for in-production debugging
+  useEffect(() => {
+    const onKey = e => { if (e.key === 'F12') window.electronAPI?.openDevTools?.() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   // On mount, find the backend
   useEffect(() => {
@@ -283,17 +292,18 @@ export default function AppMinimal() {
 
     const pollStatus = async () => {
       pollCount++
+      // Declare timeout outside try so it's accessible in catch
+      let timeout = 30000
+      if (pollCount > 1 && pollCount <= 5) {
+        timeout = 20000
+      } else if (pollCount > 5) {
+        timeout = 10000
+      }
       try {
         // After restart, backend can take longer to fully initialize
         // First poll: 30 seconds (backend may still be initializing)
         // Polls 2-5: 20 seconds (still warming up)
         // After that: 10 seconds (should be ready by then)
-        let timeout = 30000
-        if (pollCount > 1 && pollCount <= 5) {
-          timeout = 20000
-        } else if (pollCount > 5) {
-          timeout = 10000
-        }
 
         console.log(`[AppMinimal] Health check #${pollCount} (timeout: ${timeout}ms, ${(timeout / 1000).toFixed(0)}s)...`)
 
@@ -481,11 +491,20 @@ export default function AppMinimal() {
         setEditingCrewId(null)
         fireSISend(crew.members) // fire-and-forget
       } else {
-        // Open editor for first in queue
-        setCrewQueue(queue)
-        setQueueIndex(0)
-        setEditingCrewId(queue[0].crewId)
-        console.log('[AppMinimal] Crew queue built:', queue.length, 'missing profiles')
+        // Check if we're already editing someone still in this queue (60s re-poll re-runs this)
+        const currentEditing = editingCrewIdRef.current
+        const alreadyEditingInQueue = currentEditing && queue.some(q => q.crewId === currentEditing)
+        if (alreadyEditingInQueue) {
+          // Re-poll fired while editor was open — just refresh queue data, don't reset position
+          console.log('[AppMinimal] Re-poll while editing', currentEditing, '— keeping position')
+          setCrewQueue(queue)
+        } else {
+          // Fresh queue start
+          setCrewQueue(queue)
+          setQueueIndex(0)
+          setEditingCrewId(queue[0].crewId)
+          console.log('[AppMinimal] Crew queue built:', queue.length, 'missing profiles')
+        }
       }
     }
 
