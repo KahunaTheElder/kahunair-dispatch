@@ -45,7 +45,7 @@ class FlightDetectionService {
    * Check if a flight is currently active (in progress)
    */
   isActiveStatus(flight) {
-    return !!(flight.StartTime || flight.EngineOnTime || flight.AirborneTime);
+    return !!(flight.StartTime && !flight.EndTime);
   }
 
   /**
@@ -120,44 +120,6 @@ class FlightDetectionService {
   async getActiveKahunaFlights() {
     const flights = await this.getAllKahunaFlights();
     return flights.filter(f => this.isActiveStatus(f));
-  }
-
-  /**
-   * Get the CURRENT active flight from OnAir's /current endpoint
-   * This is the flight currently being flown, not just any active flight
-   * Much more reliable than searching through recent flights
-   */
-  async getCurrentActiveFlight() {
-    const startTime = Date.now();
-    try {
-      console.log('[FlightDetection] Fetching CURRENT active flight from OnAir...');
-      const response = await axios.get(
-        `${this.apiUrl}/company/${this.companyId}/current`,
-        {
-          headers: {
-            'oa-apikey': this.apiKey
-          },
-          timeout: 5000
-        }
-      );
-
-      const flight = response.data?.Content?.[0];
-      const duration = Date.now() - startTime;
-
-      if (!flight) {
-        console.log(`[FlightDetection] No current flight found after ${duration}ms`);
-        return null;
-      }
-
-      console.log(`[FlightDetection] Got current flight ID: ${flight.Id} (${duration}ms)`);
-      console.log(`[FlightDetection] Current flight: ${flight.DepartureAirport?.ICAO || flight.DepartureAirport} → ${flight.ArrivalIntendedAirport?.ICAO || flight.ArrivalIntendedAirport}`);
-
-      return flight;
-    } catch (error) {
-      const duration = Date.now() - startTime;
-      console.error(`[FlightDetection] Error fetching current flight after ${duration}ms: ${error.message}`);
-      return null;
-    }
   }
 
   /**
@@ -239,72 +201,31 @@ class FlightDetectionService {
       // Fetch jobs once for all flights (better performance than fetching per flight)
       const pendingJobs = await this.getCompanyJobs(false);
       console.log(`[DispatchSummary] Fetched ${pendingJobs.length} pending jobs`);
+      const allJobCargos = pendingJobs.flatMap(j => j.Cargos || []);
+      const allJobCharters = pendingJobs.flatMap(j => j.Charters || []);
 
       // Build dispatch summary with cargo/passenger types
       const flights = [];
       for (const f of activeFlights) {
-        // Extract ICAO codes from airport objects (they may be full objects or strings)
-        const flightDeparture = typeof f.DepartureAirport === 'string'
+      const flightDeparture = typeof f.DepartureAirport === 'string'
           ? f.DepartureAirport
           : f.DepartureAirport?.ICAO;
         const flightArrival = typeof f.ArrivalIntendedAirport === 'string'
           ? f.ArrivalIntendedAirport
           : f.ArrivalIntendedAirport?.ICAO;
 
-        // Find matching job for this flight
-        let cargoTypes = [];
-        let passengerTypes = [];
-        let matchedJobId = null;
-
-        if (pendingJobs.length > 0 && flightDeparture && flightArrival) {
-          console.log(`[DispatchSummary] Looking for job match for flight ${flightDeparture}→${flightArrival}`);
-
-          // Try to find a matching job by route (departure + arrival airports)
-          let matchedJob = pendingJobs.find(job => {
-            const jobDeparture = job.MainAirport?.ICAO;
-            const jobArrival = job.BaseAirport?.ICAO;
-            console.log(`[DispatchSummary]   Comparing: Job ${jobDeparture}→${jobArrival}`);
-            return jobDeparture === flightDeparture && jobArrival === flightArrival;
-          });
-
-          // If no exact match, try reverse-direction match (for return leg flights)
-          if (!matchedJob) {
-            console.log(`[DispatchSummary] No exact match found, checking reverse direction...`);
-            matchedJob = pendingJobs.find(job => {
-              const jobDeparture = job.MainAirport?.ICAO;
-              const jobArrival = job.BaseAirport?.ICAO;
-              const isReverseMatch = jobDeparture === flightArrival && jobArrival === flightDeparture;
-              if (isReverseMatch) {
-                console.log(`[DispatchSummary]   Reverse match found: Job ${jobDeparture}→${jobArrival}`);
-              }
-              return isReverseMatch;
-            });
-          }
-
-          if (matchedJob) {
-            matchedJobId = matchedJob.Id;
-            const types = this.extractCargoAndPassengerTypes(matchedJob);
-            cargoTypes = types.cargoTypes;
-            passengerTypes = types.passengerTypes;
-            console.log(`[DispatchSummary] ✓ MATCH FOUND: Flight ${flightDeparture}→${flightArrival}`);
-            console.log(`[DispatchSummary]   Cargo Types: ${JSON.stringify(cargoTypes)}`);
-            console.log(`[DispatchSummary]   Passenger Types: ${JSON.stringify(passengerTypes)}`);
-          } else {
-            console.log(`[DispatchSummary] ✗ NO MATCH: Flight ${flightDeparture}→${flightArrival}`);
-          }
-        } else {
-          if (pendingJobs.length === 0) {
-            console.log(`[DispatchSummary] ℹ No pending jobs available for matching`);
-          } else {
-            console.log(`[DispatchSummary] ℹ Unable to extract airport codes for flight`);
-          }
-        }
+        // Match cargo and charters by CurrentAircraftId
+        const matchedCargos = allJobCargos.filter(c => c.CurrentAircraftId === f.AircraftId);
+        const matchedCharters = allJobCharters.filter(c => c.CurrentAircraftId === f.AircraftId);
+        const cargoTypes = [...new Set(matchedCargos.map(c => c.CargoType?.Name).filter(Boolean))];
+        const passengerTypes = [...new Set(matchedCharters.map(c => c.CharterType?.Name).filter(Boolean))];
+        console.log(`[DispatchSummary] Flight ${flightDeparture}→${flightArrival}: ${matchedCargos.length} cargos, ${matchedCharters.length} charters`);
 
         flights.push({
           id: f.Id,
           aircraft: {
             id: f.AircraftId,
-            type: f.Aircraft?.AircraftType?.Name || 'Unknown'
+            type: f.Aircraft?.AircraftType?.DisplayName || f.Aircraft?.AircraftType?.Name || 'Unknown'
           },
           route: {
             departure: flightDeparture,
@@ -315,15 +236,14 @@ class FlightDetectionService {
             kahuna: f.FlightCrews?.filter(c => c.People?.CompanyId === this.kahunaCompanyId).length || 0
           },
           payload: {
-            passengers: f.PassengerCount || 0,
-            cargo: f.CargoWeight || 0,
-            cargoUoM: f.CargoWeightUoM || 'lbs',
+            passengers: f.PAXCount || 0,
+            cargo: f.CargosTotalWeight || 0,
+            cargoUoM: 'lbs',
             cargoTypes: cargoTypes,
             passengerTypes: passengerTypes
           },
           status: this.getFlightPhase(f),
-          siKey: this.getSayIntentionsKey(f),
-          matchedJobId: matchedJobId
+          siKey: this.getSayIntentionsKey(f)
         });
       }
 
@@ -471,24 +391,18 @@ class FlightDetectionService {
     try {
       const pendingJobs = await this.getCompanyJobs(false);
 
-      const flightDeparture = flight.DepartureAirport;
-      const flightArrival = flight.ArrivalIntendedAirport;
+      // Match by CurrentAircraftId - find the job containing cargo/charters loaded on this aircraft
+      const matchedJob = pendingJobs.find(job =>
+        (job.Cargos || []).some(c => c.CurrentAircraftId === flight.AircraftId) ||
+        (job.Charters || []).some(c => c.CurrentAircraftId === flight.AircraftId)
+      );
 
-      // First pass: Look for exact route match (departure + arrival)
-      for (const job of pendingJobs) {
-        // Check if this job matches this flight's route
-        // Jobs have MainAirportId (departure) and BaseAirportId (destination)
-        const jobDeparture = job.MainAirport?.ICAO;
-        const jobArrival = job.BaseAirport?.ICAO;
-
-        if (jobDeparture === flightDeparture && jobArrival === flightArrival) {
-          console.log(`[FlightDetection] ✓ Matched flight ${flightDeparture}→${flightArrival} to job ID ${job.Id}`);
-          return job;
-        }
+      if (matchedJob) {
+        console.log(`[FlightDetection] ✓ Matched flight to job ${matchedJob.Id} via CurrentAircraftId`);
+        return matchedJob;
       }
 
-      // No match found
-      console.log(`[FlightDetection] ℹ No matching job found for flight ${flightDeparture}→${flightArrival}`);
+      console.log(`[FlightDetection] ℹ No matching job found for aircraft ${flight.AircraftId}`);
       return null;
     } catch (error) {
       console.error('[FlightDetection] Error matching flight to job:', error.message);

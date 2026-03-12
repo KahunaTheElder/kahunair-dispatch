@@ -113,75 +113,20 @@ async function findFlightByRoute(depIcao, arrIcao, companyId, companyApiKey, vaI
 }
 
 /**
- * Match cargo and charter items for a flight by MissionId, with fallback to route matching
- * @param {Object} flight - Flight object
- * @param {Array} jobs - Array of job objects
- * @param {string} depIcao - Departure ICAO
- * @param {string} arrIcao - Arrival ICAO
+ * Match cargo and charter items for a flight by CurrentAircraftId.
+ * Cargo/charters loaded on an aircraft have CurrentAircraftId set to that aircraft's ID.
+ * @param {Object} flight - Flight object with AircraftId field
+ * @param {Array} jobs - Array of job objects from the jobs API
  * @returns {Object} { cargos: [], charters: [] }
  */
-function matchCargoCharter(flight, jobs, depIcao, arrIcao) {
-  let matchedCargos = [];
-  let matchedCharters = [];
-  const flightId = flight.Id;
-
-  // Primary: Try MissionId matching
-  jobs.forEach(job => {
-    if (job.Cargos && Array.isArray(job.Cargos)) {
-      job.Cargos.forEach(cargo => {
-        if (cargo.MissionId === flightId) {
-          matchedCargos.push(formatCargo(cargo));
-        }
-      });
-    }
-
-    if (job.Charters && Array.isArray(job.Charters)) {
-      job.Charters.forEach(charter => {
-        if (charter.MissionId === flightId) {
-          matchedCharters.push(formatCharter(charter));
-        }
-      });
-    }
-  });
-
-  // Fallback: Route matching if MissionId yielded nothing
-  if (matchedCargos.length === 0 && matchedCharters.length === 0) {
-    jobs.forEach(job => {
-      if (job.Cargos && Array.isArray(job.Cargos)) {
-        job.Cargos.forEach(cargo => {
-          // Handle both object and string airport formats
-          const cargoFrom = (typeof cargo.DepartureAirport === 'string') 
-            ? cargo.DepartureAirport 
-            : cargo.DepartureAirport?.ICAO;
-          const cargoTo = (typeof cargo.DestinationAirport === 'string')
-            ? cargo.DestinationAirport
-            : cargo.DestinationAirport?.ICAO;
-          
-          if (cargoFrom?.toUpperCase() === depIcao && cargoTo?.toUpperCase() === arrIcao) {
-            matchedCargos.push(formatCargo(cargo));
-          }
-        });
-      }
-
-      if (job.Charters && Array.isArray(job.Charters)) {
-        job.Charters.forEach(charter => {
-          // Handle both object and string airport formats
-          const charterFrom = (typeof charter.DepartureAirport === 'string')
-            ? charter.DepartureAirport
-            : charter.DepartureAirport?.ICAO;
-          const charterTo = (typeof charter.DestinationAirport === 'string')
-            ? charter.DestinationAirport
-            : charter.DestinationAirport?.ICAO;
-          
-          if (charterFrom?.toUpperCase() === depIcao && charterTo?.toUpperCase() === arrIcao) {
-            matchedCharters.push(formatCharter(charter));
-          }
-        });
-      }
-    });
-  }
-
-  return { cargos: matchedCargos, charters: matchedCharters };
+function matchCargoCharter(flight, jobs) {
+  const aircraftId = flight.AircraftId;
+  const allCargos = jobs.flatMap(j => j.Cargos || []);
+  const allCharters = jobs.flatMap(j => j.Charters || []);
+  return {
+    cargos: allCargos.filter(c => c.CurrentAircraftId === aircraftId).map(formatCargo),
+    charters: allCharters.filter(c => c.CurrentAircraftId === aircraftId).map(formatCharter)
+  };
 }
 
 /**
@@ -203,7 +148,7 @@ function formatCargo(cargo) {
     weight: cargo.Weight,
     from: from || '?',
     to: to || '?',
-    missionId: cargo.MissionId?.substring(0, 8)
+    missionId: cargo.MissionId
   };
 }
 
@@ -224,9 +169,10 @@ function formatCharter(charter) {
     description: charter.Description,
     type: charter.CharterType?.Name || 'Unknown',
     passengers: charter.PassengersNumber,
+    cabinClass: ['Eco', 'Business', 'First'][charter.MinPAXSeatConf] || 'Eco',
     from: from || '?',
     to: to || '?',
-    missionId: charter.MissionId?.substring(0, 8)
+    missionId: charter.MissionId
   };
 }
 
@@ -267,12 +213,7 @@ async function matchCargoCharterForFlight(depIcao, arrIcao, credentials) {
   const allJobs = [...(pendingRes.Content || []), ...(completedRes.Content || [])];
 
   // Match cargo and charters
-  const { cargos, charters } = matchCargoCharter(
-    flight,
-    allJobs,
-    depIcao.toUpperCase(),
-    arrIcao.toUpperCase()
-  );
+  const { cargos, charters } = matchCargoCharter(flight, allJobs);
 
   return {
     flight: {
@@ -357,79 +298,13 @@ async function matchCargoCharterForActiveFlight(flight, credentials) {
     });
 
     console.log(`[cargoCharterService] Total items in jobs: ${allCargos.length} cargos + ${allCharters.length} charters`);
-    
-    // DEBUG: Check if ANY items match target route
-    const targetRouteCargos = allCargos.filter(c => c.DestinationAirport?.ICAO === arrIcao);
-    const targetRouteCharters = allCharters.filter(ch => ch.DestinationAirport?.ICAO === arrIcao);
-    console.log(`[cargoCharterService] Items with destination ${arrIcao}: ${targetRouteCargos.length} cargos + ${targetRouteCharters.length} charters`);
-    
-    if (targetRouteCargos.length === 0 && targetRouteCharters.length === 0) {
-      // Check what destinations ARE available
-      const uniqueDestinations = new Set();
-      allCargos.forEach(c => {
-        if (c.DestinationAirport?.ICAO) uniqueDestinations.add(c.DestinationAirport.ICAO);
-      });
-      allCharters.forEach(ch => {
-        if (ch.DestinationAirport?.ICAO) uniqueDestinations.add(ch.DestinationAirport.ICAO);
-      });
-      console.log(`[cargoCharterService] Available destinations: ${Array.from(uniqueDestinations).join(', ')}`);
-    }
 
-    // PRIMARY: Try to match by MissionId
-    let matchedCargos = allCargos.filter(c => c.MissionId === flight.Id);
-    let matchedCharters = allCharters.filter(ch => ch.MissionId === flight.Id);
+    // Match by CurrentAircraftId - cargo/charters currently loaded on our aircraft
+    const matchedCargos = allCargos.filter(c => c.CurrentAircraftId === flight.AircraftId);
+    const matchedCharters = allCharters.filter(ch => ch.CurrentAircraftId === flight.AircraftId);
 
-    console.log(`[cargoCharterService] MissionId matches: ${matchedCargos.length} cargos, ${matchedCharters.length} charters`);
+    console.log(`[cargoCharterService] Aircraft matches: ${matchedCargos.length} cargos, ${matchedCharters.length} charters`);
 
-    // FALLBACK: If no MissionId matches, try multiple strategies
-    if (matchedCargos.length === 0 && matchedCharters.length === 0) {
-      console.log(`[cargoCharterService] No MissionId matches, trying fallback strategies...`);
-      
-      // Strategy 1: Match by full route (departure AND destination)
-      let strategyMatches = allCargos.filter(c => {
-        const cDep = c.DepartureAirport?.ICAO || c.DepartureAirport;
-        const cArr = c.DestinationAirport?.ICAO || c.DestinationAirport;
-        return cDep === depIcao && cArr === arrIcao;
-      });
-      console.log(`[cargoCharterService] Strategy 1 (full route match): ${strategyMatches.length} cargos`);
-      matchedCargos.push(...strategyMatches);
-      
-      strategyMatches = allCharters.filter(ch => {
-        const chDep = ch.DepartureAirport?.ICAO || ch.DepartureAirport;
-        const chArr = ch.DestinationAirport?.ICAO || ch.DestinationAirport;
-        return chDep === depIcao && chArr === arrIcao;
-      });
-      console.log(`[cargoCharterService] Strategy 1 (full route match): ${strategyMatches.length} charters`);
-      matchedCharters.push(...strategyMatches);
-      
-      // Strategy 2: Match by destination only (items going TO this airport, any source)
-      if (matchedCargos.length === 0) {
-        strategyMatches = allCargos.filter(c => (c.DestinationAirport?.ICAO || c.DestinationAirport) === arrIcao);
-        console.log(`[cargoCharterService] Strategy 2 (dest only): ${strategyMatches.length} cargos ending at ${arrIcao}`);
-        matchedCargos.push(...strategyMatches);
-      }
-      
-      if (matchedCharters.length === 0) {
-        strategyMatches = allCharters.filter(ch => (ch.DestinationAirport?.ICAO || ch.DestinationAirport) === arrIcao);
-        console.log(`[cargoCharterService] Strategy 2 (dest only): ${strategyMatches.length} charters ending at ${arrIcao}`);
-        matchedCharters.push(...strategyMatches);
-      }
-      
-      // Strategy 3: Match by departure only (items FROM this airport, any destination)
-      if (matchedCargos.length === 0) {
-        strategyMatches = allCargos.filter(c => (c.DepartureAirport?.ICAO || c.DepartureAirport) === depIcao);
-        console.log(`[cargoCharterService] Strategy 3 (departure only): ${strategyMatches.length} cargos from ${depIcao}`);
-        matchedCargos.push(...strategyMatches);
-      }
-      
-      if (matchedCharters.length === 0) {
-        strategyMatches = allCharters.filter(ch => (ch.DepartureAirport?.ICAO || ch.DepartureAirport) === depIcao);
-        console.log(`[cargoCharterService] Strategy 3 (departure only): ${strategyMatches.length} charters from ${depIcao}`);
-        matchedCharters.push(...strategyMatches);
-      }
-    }
-
-    // Format and return results
     const formattedCargos = matchedCargos.map(c => formatCargo(c));
     const formattedCharters = matchedCharters.map(ch => formatCharter(ch));
 

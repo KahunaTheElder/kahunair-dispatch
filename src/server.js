@@ -49,6 +49,15 @@ class DispatchServer {
     // Storage for dispatch preferences (in-memory; can be upgraded to database)
     this.dispatchPreferences = {};
 
+    // Cargo polling state - tracks per-flight cargo fetch status
+    // cargoStatus: 'IDLE' | 'AWAITING_OA_START' | 'LOADING' | 'READY'
+    this.cargoState = {
+      flightId: null,
+      cargoCharter: null,
+      cargoStatus: 'IDLE',
+      lastCargoFetch: null
+    };
+
     this.setupMiddleware();
     this.setupRoutes();
   }
@@ -1914,29 +1923,73 @@ class DispatchServer {
           console.log('[API]   ⚠️  No crew data received from OnAir')
         }
 
-        // Fetch cargo and charter information
-        let cargoCharter = null;
-        
-        try {
-          const ccStart = Date.now();
-          console.log(`[API /flights/current] ▶ Fetching cargo/charter for flight ID: ${flight.Id}`);
-          
-          cargoCharter = await matchCargoCharterForActiveFlight(
-            flight,
-            this.credentials
-          );
-          
-          const ccDuration = Date.now() - ccStart;
-          console.log(`[API /flights/current] ✓ Cargo/charter fetch took ${ccDuration}ms`);
-          console.log(`[API /flights/current]   Cargos: ${cargoCharter.cargos.length}, Charters: ${cargoCharter.charters.length}, Source: ${cargoCharter.source}`);
-          
-          // Add cargo/charter to formatted flight
-          formattedFlight.cargoCharter = cargoCharter;
-        } catch (err) {
-          console.warn(`[API /flights/current] ⚠️  Cargo/charter fetch failed: ${err.message}`);
-          // Don't fail the entire request if cargo/charter fetch fails
-          formattedFlight.cargoCharter = null;
+        // ── Staged cargo loading ─────────────────────────────────────────
+        // Only fetch cargo once StartTime is set (player has clicked Fly Now).
+        // Poll the jobs API at 60-second intervals until cargo is found.
+        // Once found, cache it for the duration of the flight.
+        const CARGO_POLL_INTERVAL_MS = 60000;
+        const flightId = flight.Id;
+        const hasStartTime = !!flight.StartTime;
+        const hasEngineOnTime = !!flight.EngineOnTime;
+        const now = Date.now();
+
+        // Reset state when a new flight is detected
+        if (this.cargoState.flightId !== flightId) {
+          console.log(`[API /flights/current] New flight detected (${flightId}), resetting cargo state`);
+          this.cargoState = {
+            flightId,
+            cargoCharter: null,
+            cargoStatus: 'IDLE',
+            lastCargoFetch: null
+          };
         }
+
+        if (!hasStartTime) {
+          // Flight exists in OA but Fly Now hasn't been pressed yet
+          this.cargoState.cargoStatus = 'AWAITING_OA_START';
+        } else if (this.cargoState.cargoStatus !== 'READY') {
+          // StartTime is set — determine if it's time to poll
+          const timeSinceLastFetch = this.cargoState.lastCargoFetch
+            ? now - this.cargoState.lastCargoFetch
+            : Infinity;
+          const shouldFetch = timeSinceLastFetch >= CARGO_POLL_INTERVAL_MS;
+
+          if (shouldFetch) {
+            try {
+              const ccStart = Date.now();
+              console.log(`[API /flights/current] ▶ Polling cargo/charter (StartTime set, ${hasEngineOnTime ? 'engines on' : 'pre-engine'})`);
+              this.cargoState.lastCargoFetch = now;
+
+              const result = await matchCargoCharterForActiveFlight(flight, this.credentials);
+              const ccDuration = Date.now() - ccStart;
+
+              if (result.cargos.length > 0 || result.charters.length > 0) {
+                // Cargo found — cache and mark ready
+                this.cargoState.cargoCharter = result;
+                this.cargoState.cargoStatus = 'READY';
+                console.log(`[API /flights/current] ✓ Cargo READY in ${ccDuration}ms: ${result.cargos.length} cargos, ${result.charters.length} charters`);
+              } else if (hasEngineOnTime) {
+                // Engines are on but no cargo — this is genuinely a no-cargo flight
+                this.cargoState.cargoCharter = result;
+                this.cargoState.cargoStatus = 'READY';
+                console.log(`[API /flights/current] ✓ Engines on, no cargo found — marking READY (empty flight)`);
+              } else {
+                // StartTime set but no cargo yet and no engine on — keep polling
+                this.cargoState.cargoStatus = 'LOADING';
+                console.log(`[API /flights/current] ℹ Cargo not yet available, will retry in ${CARGO_POLL_INTERVAL_MS / 1000}s`);
+              }
+            } catch (err) {
+              console.warn(`[API /flights/current] ⚠️  Cargo fetch failed: ${err.message}`);
+              this.cargoState.cargoStatus = 'LOADING';
+            }
+          } else {
+            const remaining = Math.round((CARGO_POLL_INTERVAL_MS - timeSinceLastFetch) / 1000);
+            console.log(`[API /flights/current] ⏳ Cargo poll in ${remaining}s (status: ${this.cargoState.cargoStatus})`);
+          }
+        }
+
+        formattedFlight.cargoCharter = this.cargoState.cargoCharter;
+        formattedFlight.cargoStatus = this.cargoState.cargoStatus;
 
         console.log(`[API /flights/current] ✓ Sending response (${Date.now() - startTime}ms)`);
         res.json({

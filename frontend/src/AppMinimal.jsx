@@ -42,6 +42,7 @@ export default function AppMinimal() {
   const [crew, setCrew] = useState(null)
   const [crewProfiles, setCrewProfiles] = useState({}) // crewId -> profile mapping
   const [cargoCharter, setCargoCharter] = useState({ cargos: [], charters: [] }) // NEW: Cargo/Charter data
+  const [cargoStatus, setCargoStatus] = useState('IDLE') // IDLE | AWAITING_OA_START | LOADING | READY
 
   // Handle saving crew profile (called by CrewProfileEditorV2)
   const handleSaveCrewPersonality = async (crewId, payload) => {
@@ -246,9 +247,13 @@ export default function AppMinimal() {
               })
               if (ccRes.ok) {
                 const ccJson = await ccRes.json()
-                if (ccJson.flight?.cargoCharter) {
-                  console.log('[AppMinimal] Loaded cargoCharter:', ccJson.flight.cargoCharter.cargos?.length, 'cargos,', ccJson.flight.cargoCharter.charters?.length, 'charters')
-                  setCargoCharter(ccJson.flight.cargoCharter)
+                if (ccJson.flight) {
+                  const status = ccJson.flight.cargoStatus || 'IDLE'
+                  setCargoStatus(status)
+                  if (ccJson.flight.cargoCharter) {
+                    console.log('[AppMinimal] Loaded cargoCharter:', ccJson.flight.cargoCharter.cargos?.length, 'cargos,', ccJson.flight.cargoCharter.charters?.length, 'charters')
+                    setCargoCharter(ccJson.flight.cargoCharter)
+                  }
                 }
               }
             } catch (err) {
@@ -463,8 +468,26 @@ export default function AppMinimal() {
 
   // NEW: Cargo & Charter Display Component
   const CargoCharterDisplay = () => {
+    if (cargoStatus === 'AWAITING_OA_START') {
+      return (
+        <div className="cargo-charter-section">
+          <div className="cargo-charter-title">📦 CARGO & CHARTERS</div>
+          <div className="cargo-status-message">⏳ Waiting for OnAir flight start...</div>
+        </div>
+      )
+    }
+
+    if (cargoStatus === 'LOADING') {
+      return (
+        <div className="cargo-charter-section">
+          <div className="cargo-charter-title">📦 CARGO & CHARTERS</div>
+          <div className="cargo-status-message">🔄 Loading cargo details...</div>
+        </div>
+      )
+    }
+
     if (!cargoCharter || (cargoCharter.cargos?.length === 0 && cargoCharter.charters?.length === 0)) {
-      return null // Don't show if no cargo/charter
+      return null // Don't show if no cargo/charter (IDLE or READY with empty flight)
     }
 
     return (
