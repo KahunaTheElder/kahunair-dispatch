@@ -1011,7 +1011,7 @@ export default function AppMinimal() {
     // Separate crew by role
     const captain = crew.members.find(m => m.role === 'Captain')
     const firstOfficer = crew.members.find(m => m.role === 'First Officer')
-    const attendants = crew.members.filter(m => m.role === 'Flight Attendant').slice(0, 5)
+    const attendants = crew.members.filter(m => m.role === 'Flight Attendant')
 
     // SI status badge
     const siBadge = siSendStatus === 'sent'
