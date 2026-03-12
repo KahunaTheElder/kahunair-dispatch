@@ -1064,6 +1064,8 @@ export default function AppMinimal() {
 
       <FlightInfoDisplay />
 
+      <CargoCharterDisplay />
+
       <CrewDisplay />
 
       <CrewProfileEditorV2
