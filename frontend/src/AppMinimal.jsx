@@ -703,12 +703,32 @@ export default function AppMinimal() {
         <div className="flight-params-text">
           TOW {flightData.tow}K | BF {flightData.blockFuel}K | AVG WIND {formattedWind} | ISA {isaDisplay}°
         </div>
-        {(flightData.cargoTypes && flightData.cargoTypes.length > 0) && (
+        {/* Cargo from cargoCharter (with weight), fallback to plain cargoTypes */}
+        {cargoCharter.cargos?.length > 0 ? (
+          <div className="flight-cargo-text">
+            CARGO: {cargoCharter.cargos.map(c => `${c.description} (${c.weight} ${c.weight_unit || 'lbs'})`).join(', ')}
+          </div>
+        ) : (flightData.cargoTypes && flightData.cargoTypes.length > 0) && (
           <div className="flight-cargo-text">
             CARGO TYPES: {flightData.cargoTypes.join(', ')}
           </div>
         )}
-        {(flightData.passengerTypes && flightData.passengerTypes.length > 0) && (
+        {/* Charters from cargoCharter (with class badges + counts), fallback to plain passengerTypes */}
+        {cargoCharter.charters?.length > 0 ? (
+          <div className="flight-passenger-text">
+            {cargoCharter.charters.map((ch, i) => {
+              const abbr = { 'Eco': 'Eco', 'Business': 'Bus', 'First': '1st' }
+              const cls = ch.cabinClass || 'Eco'
+              return (
+                <span key={ch.id}>
+                  {i > 0 && <span className="pax-sep"> | </span>}
+                  <span className={`pax-class-badge pax-class-${cls.toLowerCase()}`}>{abbr[cls] || cls}</span>
+                  {' '}{ch.passengers} {ch.description}
+                </span>
+              )
+            })}
+          </div>
+        ) : (flightData.passengerTypes && flightData.passengerTypes.length > 0) && (
           <div className="flight-passenger-text">
             PASSENGER TYPES: {flightData.passengerTypes.join(', ')}
           </div>
@@ -851,8 +871,6 @@ export default function AppMinimal() {
       </div>
 
       <FlightInfoDisplay />
-
-      <CargoCharterDisplay />
 
       <CrewDisplay />
 
