@@ -1008,6 +1008,168 @@ class DispatchServer {
     });
 
     /**
+     * POST /api/dispatch/crew-to-si
+     * Assemble crew profiles for the active flight, build the importVAData payload,
+     * and POST to SayIntentions.AI.
+     *
+     * Request body (optional):
+     * {
+     *   "crewMembers": [...],  // Array of crew member objects (if not provided, fetches from active flight)
+     *   "flight": {...}        // Formatted flight object (if not provided, fetches from active flight)
+     * }
+     *
+     * Response:
+     * {
+     *   "success": true,
+     *   "siStatus": "OK",
+     *   "message": "Sent to SayIntentions.AI"
+     * }
+     */
+    this.app.post('/api/dispatch/crew-to-si', async (req, res) => {
+      try {
+        const CrewProfileManager = require('./crewProfileManager');
+        const siPayloadBuilder = require('./siPayloadBuilder');
+        const axios = require('axios');
+        const fs = require('fs');
+        const path = require('path');
+
+        // Load settings to get SI API key and VA API key
+        const settingsManager = require('./settingsManager');
+        const settingsResult = settingsManager.load();
+
+        if (!settingsResult.success) {
+          return res.status(400).json({
+            success: false,
+            siStatus: 'error',
+            message: 'Settings not configured',
+            error: 'Cannot load credentials — configure settings first'
+          });
+        }
+
+        const siApiKey = settingsResult.data?.siApiKey || '';
+        const siVaApiKey = settingsResult.data?.siVaApiKey || '';
+
+        if (!siApiKey) {
+          return res.status(400).json({
+            success: false,
+            siStatus: 'error',
+            message: 'SI API key not configured',
+            error: 'Configure siApiKey in settings'
+          });
+        }
+
+        if (!siVaApiKey) {
+          return res.status(400).json({
+            success: false,
+            siStatus: 'error',
+            message: 'SI VA API key not configured',
+            error: 'Configure siVaApiKey in settings — required for importVAData'
+          });
+        }
+
+        // Get flight and crew — use provided data or fetch from active flight
+        let crewMembers = req.body?.crewMembers;
+        let flight = req.body?.flight;
+
+        if (!crewMembers || !flight) {
+          // Fetch active flight
+          const activeFlights = await this.flightService.getActiveKahunaFlights();
+          if (!activeFlights || activeFlights.length === 0) {
+            return res.status(404).json({
+              success: false,
+              siStatus: 'error',
+              message: 'No active flight found',
+              error: 'Start a flight in OnAir before sending to SI'
+            });
+          }
+          const formatted = this.formatFlightResponse(activeFlights[0]);
+          if (!flight) flight = formatted;
+          if (!crewMembers) crewMembers = formatted.crew?.members || [];
+        }
+
+        // Load all crew profiles
+        const crewManager = new CrewProfileManager();
+        const crewProfilesMap = {};
+
+        for (const member of crewMembers) {
+          const profileId = member.isMe ? 'my-pilot' : member.id;
+          const result = crewManager.load(profileId);
+          if (result.success && result.profile) {
+            crewProfilesMap[profileId] = result.profile;
+          }
+          // Skipped crew or missing profiles → no entry (handled gracefully in builder)
+        }
+
+        // Load VA profile
+        let vaProfile = null;
+        try {
+          const vaProfilePath = path.join(__dirname, 'data', 'va-profiles', 'kahuna-air.json');
+          if (fs.existsSync(vaProfilePath)) {
+            vaProfile = JSON.parse(fs.readFileSync(vaProfilePath, 'utf8'));
+          }
+        } catch (e) {
+          console.warn('[crew-to-si] Could not load VA profile:', e.message);
+        }
+
+        // Assemble payload
+        const { crew_data, copilot_data, dispatcher_data } = siPayloadBuilder.assembleVAPayload(
+          crewProfilesMap,
+          crewMembers,
+          flight,
+          vaProfile,
+          null // ofpData - not available here, could be added later
+        );
+
+        const payload = {
+          va_api_key: siVaApiKey || undefined,
+          crew_data,
+          copilot_data,
+          dispatcher_data
+        };
+
+        // POST to SayIntentions.AI importVAData
+        console.log('[crew-to-si] Sending to SI importVAData...');
+        const siResponse = await axios.post(
+          'https://apipri.sayintentions.ai/sapi/importVAData',
+          null,
+          {
+            params: {
+              api_key: siApiKey,
+              payload: JSON.stringify(payload)
+            },
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            timeout: 15000
+          }
+        );
+
+        console.log('[crew-to-si] ✓ SI response:', siResponse.status, siResponse.data);
+
+        return res.json({
+          success: true,
+          siStatus: siResponse.data?.status || 'OK',
+          message: 'Sent to SayIntentions.AI',
+          crewCount: crewMembers.length,
+          profilesLoaded: Object.keys(crewProfilesMap).length,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        const isAxiosError = error.isAxiosError || error.response;
+        const statusCode = error.response?.status;
+        const siMessage = error.response?.data;
+        console.error('[crew-to-si] Error:', error.message, siMessage || '');
+
+        return res.status(500).json({
+          success: false,
+          siStatus: 'error',
+          message: isAxiosError
+            ? `SI API error (${statusCode}): ${JSON.stringify(siMessage)}`
+            : error.message,
+          error: error.message
+        });
+      }
+    });
+
+    /**
      * GET /api/crew/{id}/si-format
      * Get crew profile formatted for SayIntentions.AI importVAData endpoint
      * 
@@ -2870,13 +3032,16 @@ class DispatchServer {
           careerHours = companyHours;
         }
 
+        const isKahuna = (crew.People?.CompanyId || crew.CompanyId) === '5597c4b6-8f0b-4bbd-a13e-42f8a6e04026';
         const extracted = {
           id: crew.Id,
           name: crewName,
           level: crewLevel,
           role: crewRole,
           companyId: crew.People?.CompanyId || crew.CompanyId,
-          isKahuna: (crew.People?.CompanyId || crew.CompanyId) === '5597c4b6-8f0b-4bbd-a13e-42f8a6e04026',
+          isKahuna: isKahuna,
+          // Captain role is always the user — used by crew queue to route profile to my-pilot
+          isMe: isKahuna || crewRole === 'Captain',
           // Career flight hours (total before hiring + company hours for founders)
           hours: Math.round(careerHours),
           // Career landings (total across all companies)

@@ -66,11 +66,11 @@ async function findFlightByRoute(depIcao, arrIcao, companyId, companyApiKey, vaI
   try {
     const res = await apiCall(`/company/${companyId}/flights?limit=50&sort=desc`, companyApiKey);
     const flights = res.Content || [];
-    matches = flights.filter(f => 
-      f.DepartureAirport?.ICAO === depIcao && 
+    matches = flights.filter(f =>
+      f.DepartureAirport?.ICAO === depIcao &&
       f.ArrivalIntendedAirport?.ICAO === arrIcao
     );
-    
+
     if (matches.length > 0) {
       selectedId = companyId;
       selectedApiKey = companyApiKey;
@@ -84,11 +84,11 @@ async function findFlightByRoute(depIcao, arrIcao, companyId, companyApiKey, vaI
     try {
       const res = await apiCall(`/company/${vaId}/flights?limit=50&sort=desc`, vaApiKey);
       const flights = res.Content || [];
-      matches = flights.filter(f => 
-        f.DepartureAirport?.ICAO === depIcao && 
+      matches = flights.filter(f =>
+        f.DepartureAirport?.ICAO === depIcao &&
         f.ArrivalIntendedAirport?.ICAO === arrIcao
       );
-      
+
       if (matches.length > 0) {
         selectedId = vaId;
         selectedApiKey = vaApiKey;
@@ -134,8 +134,8 @@ function matchCargoCharter(flight, jobs) {
  */
 function formatCargo(cargo) {
   // Handle both string and object airport formats
-  const from = (typeof cargo.DepartureAirport === 'string') 
-    ? cargo.DepartureAirport 
+  const from = (typeof cargo.DepartureAirport === 'string')
+    ? cargo.DepartureAirport
     : cargo.DepartureAirport?.ICAO;
   const to = (typeof cargo.DestinationAirport === 'string')
     ? cargo.DestinationAirport
@@ -186,7 +186,7 @@ function formatCharter(charter) {
 async function matchCargoCharterForFlight(depIcao, arrIcao, credentials) {
   // Validate credentials
   if (!credentials.ONAIR_COMPANY_ID || !credentials.ONAIR_COMPANY_API_KEY ||
-      !credentials.ONAIR_VA_ID || !credentials.ONAIR_VA_API_KEY) {
+    !credentials.ONAIR_VA_ID || !credentials.ONAIR_VA_API_KEY) {
     throw new Error('Missing required credentials: ONAIR_COMPANY_ID, ONAIR_COMPANY_API_KEY, ONAIR_VA_ID, ONAIR_VA_API_KEY');
   }
 
@@ -209,7 +209,7 @@ async function matchCargoCharterForFlight(depIcao, arrIcao, credentials) {
   // Fetch pending and completed jobs
   const pendingRes = await apiCall(`/company/${selectedId}/jobs/pending`, selectedApiKey);
   const completedRes = await apiCall(`/company/${selectedId}/jobs/completed`, selectedApiKey);
-  
+
   const allJobs = [...(pendingRes.Content || []), ...(completedRes.Content || [])];
 
   // Match cargo and charters
@@ -274,7 +274,7 @@ async function matchCargoCharterForActiveFlight(flight, credentials) {
         selectedId = credentials.ONAIR_VA_ID;
         selectedApiKey = credentials.ONAIR_VA_API_KEY;
         source = 'VA';
-        
+
         const pendingRes = await apiCall(`/company/${selectedId}/jobs/pending`, selectedApiKey);
         const completedRes = await apiCall(`/company/${selectedId}/jobs/completed`, selectedApiKey);
         jobs = [...(pendingRes.Content || []), ...(completedRes.Content || [])];

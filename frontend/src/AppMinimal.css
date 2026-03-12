@@ -628,7 +628,9 @@ body {
 .cargo-info,
 .cargo-type,
 .cargo-weight,
-.cargo-route { /* legacy — superseded by compact line layout below */ }
+.cargo-route {
+  /* legacy — superseded by compact line layout below */
+}
 
 /* Compact charter line: Eco 3 Film Crew LEBB-UKDR | Bus 17 Soldiers LEBB-UKDR */
 .charter-line {

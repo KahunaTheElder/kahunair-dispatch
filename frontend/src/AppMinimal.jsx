@@ -44,6 +44,106 @@ export default function AppMinimal() {
   const [cargoCharter, setCargoCharter] = useState({ cargos: [], charters: [] }) // NEW: Cargo/Charter data
   const [cargoStatus, setCargoStatus] = useState('IDLE') // IDLE | AWAITING_OA_START | LOADING | READY
 
+  // Crew profile editor queue state
+  const [crewQueue, setCrewQueue] = useState([])       // ordered list of { crewId, member } needing profiles
+  const [queueIndex, setQueueIndex] = useState(0)      // current position in queue
+  const [skipConfirm, setSkipConfirm] = useState(null) // crewId pending skip confirm, or null
+  const [siSendStatus, setSiSendStatus] = useState('idle') // idle | sending | sent | error
+
+  // Settings modal state
+  const [showSettings, setShowSettings] = useState(false)
+  const [settingsForm, setSettingsForm] = useState({
+    siApiKey: '', siVaApiKey: '', oaCompanyId: '', oaApiKey: '',
+    oaVaId: '', oaVaApiKey: '', oaPilotId: '', simBriefPilotId: ''
+  })
+  const [settingsSaveStatus, setSettingsSaveStatus] = useState('idle') // idle | saving | saved | error
+
+  const openSettings = async () => {
+    setSettingsSaveStatus('idle')
+    setShowSettings(true)
+    try {
+      const res = await fetch(`${apiUrl}/api/settings`, { signal: AbortSignal.timeout(5000) })
+      if (res.ok) {
+        const data = await res.json()
+        if (data.success && data.data) {
+          setSettingsForm({
+            siApiKey: data.data.siApiKey || '',
+            siVaApiKey: data.data.siVaApiKey || '',
+            oaCompanyId: data.data.oaCompanyId || '',
+            oaApiKey: data.data.oaApiKey || '',
+            oaVaId: data.data.oaVaId || '',
+            oaVaApiKey: data.data.oaVaApiKey || '',
+            oaPilotId: data.data.oaPilotId || '',
+            simBriefPilotId: data.data.simBriefPilotId || ''
+          })
+        }
+      }
+    } catch (e) {
+      // Start with empty form if settings haven't been saved yet
+    }
+  }
+
+  const saveSettings = async () => {
+    setSettingsSaveStatus('saving')
+    try {
+      const res = await fetch(`${apiUrl}/api/settings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settingsForm),
+        signal: AbortSignal.timeout(10000)
+      })
+      const data = await res.json()
+      if (res.ok && data.success) {
+        setSettingsSaveStatus('saved')
+        setTimeout(() => setShowSettings(false), 800)
+      } else {
+        setSettingsSaveStatus(`error:${data.error || data.message || 'Save failed'}`)
+      }
+    } catch (e) {
+      setSettingsSaveStatus(`error:${e.message}`)
+    }
+  }
+
+  // Fire SI send after all profiles are handled
+  const fireSISend = async (members) => {
+    setSiSendStatus('sending')
+    try {
+      console.log('[AppMinimal] Firing SI send...')
+      const res = await fetch(`${apiUrl}/api/dispatch/crew-to-si`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ crewMembers: members }),
+        signal: AbortSignal.timeout(20000)
+      })
+      const data = await res.json()
+      if (res.ok && data.success) {
+        console.log('[AppMinimal] ✓ SI send success:', data.siStatus)
+        setSiSendStatus('sent')
+      } else {
+        console.error('[AppMinimal] SI send failed:', data.message)
+        setSiSendStatus('error')
+      }
+    } catch (error) {
+      console.error('[AppMinimal] SI send error:', error.message)
+      setSiSendStatus('error')
+    }
+  }
+
+  // Advance queue after save or skip
+  const advanceQueue = async (currentIndex, queue, updatedMembers) => {
+    const nextIndex = currentIndex + 1
+    if (nextIndex < queue.length) {
+      setQueueIndex(nextIndex)
+      setEditingCrewId(queue[nextIndex].crewId)
+    } else {
+      // Queue exhausted — fire SI send
+      setEditingCrewId(null)
+      setCrewQueue([])
+      setQueueIndex(0)
+      await fireSISend(updatedMembers)
+    }
+  }
+
   // Handle saving crew profile (called by CrewProfileEditorV2)
   const handleSaveCrewPersonality = async (crewId, payload) => {
     if (!crewId) return
@@ -59,12 +159,12 @@ export default function AppMinimal() {
       if (res.ok) {
         const data = await res.json()
         console.log('[AppMinimal] ✓ Crew profile saved')
-        // Update local crew profiles with new data
         setCrewProfiles(prev => ({
           ...prev,
           [crewId]: data.profile || payload
         }))
-        setEditingCrewId(null)
+        // Advance the queue
+        await advanceQueue(queueIndex, crewQueue, crew?.members || [])
       } else {
         console.error('[AppMinimal] Save failed, status:', res.status)
         alert('Failed to save crew profile')
@@ -73,6 +173,24 @@ export default function AppMinimal() {
       console.error('[AppMinimal] Error saving crew profile:', error)
       alert(`Error saving profile: ${error.message}`)
     }
+  }
+
+  // Handle skip request from editor
+  const handleSkipCrew = (crewId) => {
+    setSkipConfirm(crewId)
+  }
+
+  // Confirm skip — advance queue without saving
+  const confirmSkip = async () => {
+    const crewId = skipConfirm
+    setSkipConfirm(null)
+    await advanceQueue(queueIndex, crewQueue, crew?.members || [])
+  }
+
+  // Cancel skip — reopen editor for same crew member
+  const cancelSkip = () => {
+    setSkipConfirm(null)
+    // editingCrewId still set — editor stays open
   }
 
   const handleExit = async () => {
@@ -274,58 +392,61 @@ export default function AppMinimal() {
     return () => clearInterval(interval)
   }, [apiUrl])
 
-  // Load crew profiles when crew data changes
+  // Load crew profiles when crew data changes — build queue for missing profiles
   useEffect(() => {
     if (!crew || !crew.members || crew.members.length === 0) return
 
     const loadCrewProfiles = async () => {
       const profiles = {}
-      for (const member of crew.members) {
+      const queue = []
+
+      // Sort: Captain first (isMe), then FO, then FAs
+      const sorted = [...crew.members].sort((a, b) => {
+        const order = { Captain: 0, 'First Officer': 1, 'Flight Attendant': 2 }
+        return (order[a.role] ?? 3) - (order[b.role] ?? 3)
+      })
+
+      for (const member of sorted) {
+        // Captain always uses my-pilot profile key
+        const profileId = member.isMe ? 'my-pilot' : member.id
+
         try {
-          const res = await fetch(`${apiUrl}/api/crew/${member.id}/profile`, {
+          const res = await fetch(`${apiUrl}/api/crew/${profileId}/profile`, {
             signal: AbortSignal.timeout(5000)
           })
 
           if (res.ok) {
-            // Profile exists
             const data = await res.json()
             if (data.profile) {
-              profiles[member.id] = data.profile
+              profiles[profileId] = data.profile
             }
           } else if (res.status === 404) {
-            // New crew member - create empty profile
-            const jsonBody = {
-              currentName: member.name,
-              role: member.role === 'Captain' ? 0 : member.role === 'First Officer' ? 1 : 2,
-              companyId: member.companyId || 'unknown',
-              personality: 'standard',
-              customNotes: '',
-              siKey: member.siKey || '',
-              crew_data: {}
-            }
-
-            const createRes = await fetch(`${apiUrl}/api/crew/${member.id}/profile`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(jsonBody),
-              signal: AbortSignal.timeout(5000)
-            })
-
-            if (createRes.ok) {
-              const createData = await createRes.json()
-              if (createData.profile) {
-                profiles[member.id] = createData.profile
-                console.log('[AppMinimal] Created new profile for', member.name)
-              }
-            } else {
-              console.warn('[AppMinimal] Failed to create profile for', member.name)
-            }
+            // New crew member — add to queue
+            queue.push({ crewId: profileId, member })
+            console.log('[AppMinimal] New crew member (no profile):', member.name, '→ queued')
           }
         } catch (e) {
-          console.error('[AppMinimal] Error loading crew profile:', member.name, e.message)
+          console.error('[AppMinimal] Error checking crew profile:', member.name, e.message)
         }
       }
+
       setCrewProfiles(profiles)
+
+      if (queue.length === 0) {
+        // All profiles exist — fire SI send immediately
+        console.log('[AppMinimal] All crew profiled — firing SI send')
+        setSiSendStatus('idle')
+        setCrewQueue([])
+        setQueueIndex(0)
+        setEditingCrewId(null)
+        await fireSISend(crew.members)
+      } else {
+        // Open editor for first in queue
+        setCrewQueue(queue)
+        setQueueIndex(0)
+        setEditingCrewId(queue[0].crewId)
+        console.log('[AppMinimal] Crew queue built:', queue.length, 'missing profiles')
+      }
     }
 
     loadCrewProfiles()
@@ -816,18 +937,29 @@ export default function AppMinimal() {
     const firstOfficer = crew.members.find(m => m.role === 'First Officer')
     const attendants = crew.members.filter(m => m.role === 'Flight Attendant').slice(0, 5)
 
+    // SI status badge
+    const siBadge = siSendStatus === 'sent'
+      ? <span style={{ marginLeft: '10px', fontSize: '11px', color: '#4ade80', fontWeight: 600 }}>✓ Sent to SI</span>
+      : siSendStatus === 'sending'
+      ? <span style={{ marginLeft: '10px', fontSize: '11px', color: '#fbbf24', fontWeight: 600 }}>⟳ Sending...</span>
+      : siSendStatus === 'error'
+      ? <span style={{ marginLeft: '10px', fontSize: '11px', color: '#f87171', fontWeight: 600 }}>⚠ SI Error</span>
+      : null
+
     return (
       <div className="crew-section">
-        <div className="crew-title">CREW</div>
+        <div className="crew-title" style={{ display: 'flex', alignItems: 'center' }}>
+          CREW {siBadge}
+        </div>
         <div className="crew-grid">
           {captain && (
             <CrewCard
-              crewId={captain.id}
+              crewId={captain.isMe ? 'my-pilot' : captain.id}
               name={captain.name}
               role={captain.role}
               hours={captain.hours}
               flights={captain.flights}
-              profile={crewProfiles[captain.id]}
+              profile={crewProfiles[captain.isMe ? 'my-pilot' : captain.id]}
               onEdit={setEditingCrewId}
             />
           )}
@@ -869,6 +1001,21 @@ export default function AppMinimal() {
           <StatusDot status={siStatus} label="SI" />
           <StatusDot status={simConnectStatus} label="SC" />
           <StatusDot status={simBriefStatus} label="SB" />
+          <button
+            onClick={openSettings}
+            title="Settings"
+            style={{
+              background: 'none',
+              border: '1px solid #374151',
+              borderRadius: '4px',
+              color: '#9ca3af',
+              cursor: 'pointer',
+              fontSize: '14px',
+              padding: '2px 6px',
+              marginLeft: '6px',
+              lineHeight: 1
+            }}
+          >⚙</button>
         </div>
       </div>
 
@@ -877,13 +1024,96 @@ export default function AppMinimal() {
       <CrewDisplay />
 
       <CrewProfileEditorV2
-        crewId={editingCrewId}
-        crewName={crew?.members?.find(m => m.id === editingCrewId)?.name}
-        crewRole={crew?.members?.find(m => m.id === editingCrewId)?.role}
+        crewId={skipConfirm ? null : editingCrewId}
+        crewName={
+          editingCrewId === 'my-pilot'
+            ? crew?.members?.find(m => m.isMe || m.role === 'Captain')?.name
+            : crew?.members?.find(m => m.id === editingCrewId)?.name
+        }
+        crewRole={
+          editingCrewId === 'my-pilot'
+            ? 'Captain'
+            : crew?.members?.find(m => m.id === editingCrewId)?.role
+        }
+        crewHours={
+          editingCrewId === 'my-pilot'
+            ? (crew?.members?.find(m => m.isMe || m.role === 'Captain')?.hours || 0)
+            : (crew?.members?.find(m => m.id === editingCrewId)?.hours || 0)
+        }
+        crewFlights={
+          editingCrewId === 'my-pilot'
+            ? (crew?.members?.find(m => m.isMe || m.role === 'Captain')?.flights || 0)
+            : (crew?.members?.find(m => m.id === editingCrewId)?.flights || 0)
+        }
         profile={crewProfiles[editingCrewId]}
         onSave={handleSaveCrewPersonality}
-        onCancel={() => setEditingCrewId(null)}
+        onSkip={handleSkipCrew}
       />
+
+      {/* Skip confirm modal */}
+      {skipConfirm && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(0,0,0,0.85)',
+          zIndex: 10000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '16px'
+        }}>
+          <div style={{
+            backgroundColor: '#0f1117',
+            border: '1px solid #374151',
+            borderRadius: '8px',
+            padding: '24px',
+            maxWidth: '400px',
+            width: '100%'
+          }}>
+            <h3 style={{ margin: '0 0 12px', color: '#f9fafb', fontSize: '15px' }}>Skip this crew member?</h3>
+            <p style={{ margin: '0 0 20px', color: '#9ca3af', fontSize: '13px', lineHeight: 1.5 }}>
+              Skipping{' '}
+              <strong style={{ color: '#e5e7eb' }}>
+                {skipConfirm === 'my-pilot'
+                  ? (crew?.members?.find(m => m.isMe || m.role === 'Captain')?.name || 'Captain')
+                  : (crew?.members?.find(m => m.id === skipConfirm)?.name || skipConfirm)}
+              </strong>
+              {' '}will send incomplete data to SayIntentions.AI.
+            </p>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={cancelSkip}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: 'transparent',
+                  border: '1px solid #374151',
+                  borderRadius: '5px',
+                  color: '#9ca3af',
+                  fontSize: '13px',
+                  cursor: 'pointer'
+                }}
+              >
+                No — Continue Editing
+              </button>
+              <button
+                onClick={confirmSkip}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: '#7f1d1d',
+                  border: '1px solid #991b1b',
+                  borderRadius: '5px',
+                  color: '#fca5a5',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                Yes — Skip
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <footer className="app-footer">
         <h1>✈ KahunaAir Dispatch</h1>
@@ -891,6 +1121,146 @@ export default function AppMinimal() {
           ✕ EXIT
         </button>
       </footer>
+
+      {/* Settings modal */}
+      {showSettings && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(0,0,0,0.85)',
+          zIndex: 10000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '16px'
+        }}>
+          <div style={{
+            backgroundColor: '#0f1117',
+            border: '1px solid #374151',
+            borderRadius: '8px',
+            padding: '24px',
+            width: '100%',
+            maxWidth: '480px',
+            maxHeight: '90vh',
+            overflowY: 'auto'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h3 style={{ margin: 0, color: '#f9fafb', fontSize: '15px', fontWeight: 600 }}>⚙ Settings</h3>
+              <button
+                onClick={() => setShowSettings(false)}
+                style={{ background: 'none', border: 'none', color: '#9ca3af', fontSize: '18px', cursor: 'pointer', padding: '0 4px' }}
+              >✕</button>
+            </div>
+
+            {/* SayIntentions */}
+            <div style={{ marginBottom: '6px', color: '#6b7280', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>SayIntentions.AI</div>
+            {[['siApiKey', 'SI API Key'], ['siVaApiKey', 'SI VA API Key']].map(([field, label]) => (
+              <div key={field} style={{ marginBottom: '12px' }}>
+                <label style={{ display: 'block', color: '#9ca3af', fontSize: '12px', marginBottom: '4px' }}>{label}</label>
+                <input
+                  type="password"
+                  value={settingsForm[field]}
+                  onChange={e => setSettingsForm(f => ({ ...f, [field]: e.target.value }))}
+                  style={{
+                    width: '100%',
+                    backgroundColor: '#1f2937',
+                    border: '1px solid #374151',
+                    borderRadius: '4px',
+                    color: '#f9fafb',
+                    fontSize: '13px',
+                    padding: '7px 10px',
+                    boxSizing: 'border-box',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+            ))}
+
+            {/* OnAir */}
+            <div style={{ marginBottom: '6px', marginTop: '16px', color: '#6b7280', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>OnAir</div>
+            {[['oaCompanyId', 'Company ID'], ['oaApiKey', 'Company API Key'], ['oaVaId', 'VA ID'], ['oaVaApiKey', 'VA API Key'], ['oaPilotId', 'Pilot ID']].map(([field, label]) => (
+              <div key={field} style={{ marginBottom: '12px' }}>
+                <label style={{ display: 'block', color: '#9ca3af', fontSize: '12px', marginBottom: '4px' }}>{label}</label>
+                <input
+                  type={field.toLowerCase().includes('key') ? 'password' : 'text'}
+                  value={settingsForm[field]}
+                  onChange={e => setSettingsForm(f => ({ ...f, [field]: e.target.value }))}
+                  style={{
+                    width: '100%',
+                    backgroundColor: '#1f2937',
+                    border: '1px solid #374151',
+                    borderRadius: '4px',
+                    color: '#f9fafb',
+                    fontSize: '13px',
+                    padding: '7px 10px',
+                    boxSizing: 'border-box',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+            ))}
+
+            {/* SimBrief */}
+            <div style={{ marginBottom: '6px', marginTop: '16px', color: '#6b7280', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>SimBrief</div>
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', color: '#9ca3af', fontSize: '12px', marginBottom: '4px' }}>Pilot ID</label>
+              <input
+                type="text"
+                value={settingsForm.simBriefPilotId}
+                onChange={e => setSettingsForm(f => ({ ...f, simBriefPilotId: e.target.value }))}
+                style={{
+                  width: '100%',
+                  backgroundColor: '#1f2937',
+                  border: '1px solid #374151',
+                  borderRadius: '4px',
+                  color: '#f9fafb',
+                  fontSize: '13px',
+                  padding: '7px 10px',
+                  boxSizing: 'border-box',
+                  outline: 'none'
+                }}
+              />
+            </div>
+
+            {settingsSaveStatus.startsWith('error') && (
+              <div style={{ marginBottom: '12px', color: '#f87171', fontSize: '12px' }}>
+                ⚠ {settingsSaveStatus.replace(/^error:/, '')}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '8px' }}>
+              <button
+                onClick={() => setShowSettings(false)}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: 'transparent',
+                  border: '1px solid #374151',
+                  borderRadius: '5px',
+                  color: '#9ca3af',
+                  fontSize: '13px',
+                  cursor: 'pointer'
+                }}
+              >Cancel</button>
+              <button
+                onClick={saveSettings}
+                disabled={settingsSaveStatus === 'saving'}
+                style={{
+                  padding: '8px 20px',
+                  backgroundColor: settingsSaveStatus === 'saved' ? '#065f46' : '#1d4ed8',
+                  border: '1px solid ' + (settingsSaveStatus === 'saved' ? '#047857' : '#2563eb'),
+                  borderRadius: '5px',
+                  color: '#f9fafb',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  cursor: settingsSaveStatus === 'saving' ? 'not-allowed' : 'pointer'
+                }}
+              >
+                {settingsSaveStatus === 'saving' ? 'Saving...' : settingsSaveStatus === 'saved' ? '✓ Saved' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

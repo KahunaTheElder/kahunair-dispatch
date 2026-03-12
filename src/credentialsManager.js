@@ -104,6 +104,7 @@ module.exports = {
           ONAIR_VA_API_KEY: creds.ONAIR_VA_API_KEY || '',
           // SI and SimBrief
           SI_API_KEY: creds.SI_API_KEY || '',
+          SI_VA_API_KEY: creds.SI_VA_API_KEY || '',
           SIMBRIEF_PILOT_ID: creds.SIMBRIEF_PILOT_ID || '',
           // Legacy fields
           ONAIR_VA_COMPANY_ID: creds.ONAIR_VA_COMPANY_ID || creds.ONAIR_COMPANY_ID || ''

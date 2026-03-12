@@ -31,6 +31,7 @@ class SettingsManager {
     // Fields that should be encrypted
     this.encryptedFields = [
       'siApiKey',
+      'siVaApiKey',
       'oaCompanyId',
       'oaApiKey',
       'oaVaId',
@@ -129,7 +130,7 @@ class SettingsManager {
           success: false,
           message: 'Missing required credentials',
           error: `Missing fields: ${missingFields.join(', ')}`,
-          recovery: `Provide all 7 credentials: ${this.encryptedFields.join(', ')}`
+          recovery: `Provide all required credentials: ${this.encryptedFields.join(', ')}`
         };
       }
 
@@ -211,6 +212,7 @@ class SettingsManager {
       // Decrypt each field
       const decrypted = {
         siApiKey: this.decryptField(encrypted.credentials.siApiKey),
+        siVaApiKey: this.decryptField(encrypted.credentials.siVaApiKey),
         oaCompanyId: this.decryptField(encrypted.credentials.oaCompanyId),
         oaApiKey: this.decryptField(encrypted.credentials.oaApiKey),
         oaVaId: this.decryptField(encrypted.credentials.oaVaId),

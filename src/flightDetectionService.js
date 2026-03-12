@@ -207,7 +207,7 @@ class FlightDetectionService {
       // Build dispatch summary with cargo/passenger types
       const flights = [];
       for (const f of activeFlights) {
-      const flightDeparture = typeof f.DepartureAirport === 'string'
+        const flightDeparture = typeof f.DepartureAirport === 'string'
           ? f.DepartureAirport
           : f.DepartureAirport?.ICAO;
         const flightArrival = typeof f.ArrivalIntendedAirport === 'string'
