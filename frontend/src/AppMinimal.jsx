@@ -1154,7 +1154,7 @@ export default function AppMinimal() {
 
             {/* SayIntentions */}
             <div style={{ marginBottom: '6px', color: '#6b7280', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>SayIntentions.AI</div>
-            {[['siApiKey', 'SI API Key'], ['siVaApiKey', 'SI VA API Key']].map(([field, label]) => (
+            {[['siApiKey', 'SI VA Key'], ['siVaApiKey', 'SI VA API Key']].map(([field, label]) => (
               <div key={field} style={{ marginBottom: '12px' }}>
                 <label style={{ display: 'block', color: '#9ca3af', fontSize: '12px', marginBottom: '4px' }}>{label}</label>
                 <input
