@@ -1128,7 +1128,7 @@ class DispatchServer {
         const crewProfilesMap = {};
 
         for (const member of crewMembers) {
-          const profileId = member.isMe ? 'my-pilot' : member.id;
+          const profileId = member.id; // always use OnAir UUID — captain profile stored by UUID, not 'my-pilot'
           const result = crewManager.load(profileId);
           if (result.success && result.profile) {
             crewProfilesMap[profileId] = result.profile;
@@ -1252,7 +1252,7 @@ class DispatchServer {
         const crewManager = new CrewProfileManager();
         const crewProfilesMap = {};
         for (const member of crewMembers) {
-          const profileId = member.isMe ? 'my-pilot' : member.id;
+          const profileId = member.id; // always use OnAir UUID
           const result = crewManager.load(profileId);
           if (result.success && result.profile) crewProfilesMap[profileId] = result.profile;
         }
