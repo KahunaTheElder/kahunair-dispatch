@@ -703,27 +703,28 @@ export default function AppMinimal() {
         <div className="flight-params-text">
           TOW {flightData.tow}K | BF {flightData.blockFuel}K | AVG WIND {formattedWind} | ISA {isaDisplay}°
         </div>
-        {/* Cargo from cargoCharter (with weight), fallback to plain cargoTypes */}
+        {/* Cargo: type name + weight */}
         {cargoCharter.cargos?.length > 0 ? (
           <div className="flight-cargo-text">
-            CARGO: {cargoCharter.cargos.map(c => `${c.description} (${c.weight} ${c.weight_unit || 'lbs'})`).join(', ')}
+            CARGO: {cargoCharter.cargos.map(c => `${c.type} (${c.weight} ${c.weight_unit || 'lbs'})`).join(', ')}
           </div>
         ) : (flightData.cargoTypes && flightData.cargoTypes.length > 0) && (
           <div className="flight-cargo-text">
             CARGO TYPES: {flightData.cargoTypes.join(', ')}
           </div>
         )}
-        {/* Charters from cargoCharter (with class badges + counts), fallback to plain passengerTypes */}
-        {cargoCharter.charters?.length > 0 ? (
-          <div className="flight-passenger-text">
-            {cargoCharter.charters.map((ch, i) => {
+        {/* Charters: sorted Eco → Bus → 1st, class badge + count + charter type */}
+        {cargoCharter.charters?.length > 0 ? (\n          <div className="flight-passenger-text">
+            {['Eco', 'Business', 'First'].flatMap(cls =>
+              cargoCharter.charters.filter(ch => (ch.cabinClass || 'Eco') === cls)
+            ).map((ch, i) => {
               const abbr = { 'Eco': 'Eco', 'Business': 'Bus', 'First': '1st' }
               const cls = ch.cabinClass || 'Eco'
               return (
                 <span key={ch.id}>
                   {i > 0 && <span className="pax-sep"> | </span>}
                   <span className={`pax-class-badge pax-class-${cls.toLowerCase()}`}>{abbr[cls] || cls}</span>
-                  {' '}{ch.passengers} {ch.description}
+                  {' '}{ch.passengers} {ch.type}
                 </span>
               )
             })}
