@@ -519,7 +519,6 @@ export default function AppMinimal() {
             ))}
           </div>
         )}
-        </div>
       </div>
     )
   }
