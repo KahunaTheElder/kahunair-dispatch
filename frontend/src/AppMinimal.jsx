@@ -714,25 +714,26 @@ export default function AppMinimal() {
           </div>
         )}
         {/* Charters: sorted Eco → Bus → 1st, class badge + count + charter type */}
-        {cargoCharter.charters?.length > 0 ? (\n          <div className="flight-passenger-text">
-            {['Eco', 'Business', 'First'].flatMap(cls =>
-              cargoCharter.charters.filter(ch => (ch.cabinClass || 'Eco') === cls)
-            ).map((ch, i) => {
-              const abbr = { 'Eco': 'Eco', 'Business': 'Bus', 'First': '1st' }
-              const cls = ch.cabinClass || 'Eco'
-              return (
-                <span key={ch.id}>
-                  {i > 0 && <span className="pax-sep"> | </span>}
-                  <span className={`pax-class-badge pax-class-${cls.toLowerCase()}`}>{abbr[cls] || cls}</span>
-                  {' '}{ch.passengers} {ch.type}
-                </span>
-              )
-            })}
-          </div>
-        ) : (flightData.passengerTypes && flightData.passengerTypes.length > 0) && (
+        {cargoCharter.charters?.length > 0 ? (
           <div className="flight-passenger-text">
-            PASSENGER TYPES: {flightData.passengerTypes.join(', ')}
-          </div>
+          {['Eco', 'Business', 'First'].flatMap(cls =>
+            cargoCharter.charters.filter(ch => (ch.cabinClass || 'Eco') === cls)
+          ).map((ch, i) => {
+            const abbr = { 'Eco': 'Eco', 'Business': 'Bus', 'First': '1st' }
+            const cls = ch.cabinClass || 'Eco'
+            return (
+              <span key={ch.id}>
+                {i > 0 && <span className="pax-sep"> | </span>}
+                <span className={`pax-class-badge pax-class-${cls.toLowerCase()}`}>{abbr[cls] || cls}</span>
+                {' '}{ch.passengers} {ch.type}
+              </span>
+            )
+          })}
+        </div>
+        ) : (flightData.passengerTypes && flightData.passengerTypes.length > 0) && (
+        <div className="flight-passenger-text">
+          PASSENGER TYPES: {flightData.passengerTypes.join(', ')}
+        </div>
         )}
       </div>
     )
