@@ -31,6 +31,7 @@ class SettingsManager {
     // Fields that should be encrypted
     this.encryptedFields = [
       'siApiKey',
+      'siVaApiKey',
       'oaCompanyId',
       'oaApiKey',
       'oaVaId',
@@ -212,6 +213,7 @@ class SettingsManager {
       // Decrypt each field
       const decrypted = {
         siApiKey: this.decryptField(encrypted.credentials.siApiKey),
+        siVaApiKey: encrypted.credentials.siVaApiKey ? this.decryptField(encrypted.credentials.siVaApiKey) : '',
         oaCompanyId: this.decryptField(encrypted.credentials.oaCompanyId),
         oaApiKey: this.decryptField(encrypted.credentials.oaApiKey),
         oaVaId: this.decryptField(encrypted.credentials.oaVaId),

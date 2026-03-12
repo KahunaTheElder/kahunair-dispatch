@@ -100,7 +100,7 @@ export default function AppMinimal() {
   // Settings modal state
   const [showSettings, setShowSettings] = useState(false)
   const [settingsForm, setSettingsForm] = useState({
-    siApiKey: '', oaCompanyId: '', oaApiKey: '',
+    siApiKey: '', siVaApiKey: '', oaCompanyId: '', oaApiKey: '',
     oaVaId: '', oaVaApiKey: '', oaPilotId: '', simBriefPilotId: ''
   })
   const [settingsSaveStatus, setSettingsSaveStatus] = useState('idle') // idle | saving | saved | error
@@ -115,6 +115,7 @@ export default function AppMinimal() {
         if (data.success && data.data) {
           setSettingsForm({
             siApiKey: data.data.siApiKey || '',
+            siVaApiKey: data.data.siVaApiKey || '',
             oaCompanyId: data.data.oaCompanyId || '',
             oaApiKey: data.data.oaApiKey || '',
             oaVaId: data.data.oaVaId || '',
@@ -340,12 +341,13 @@ export default function AppMinimal() {
               if (sRes.ok) {
                 const sData = await sRes.json()
                 const d = sData.data || {}
-                const required = ['siApiKey', 'oaCompanyId', 'oaApiKey', 'oaVaId', 'oaVaApiKey', 'simBriefPilotId']
+                const required = ['siApiKey', 'siVaApiKey', 'oaCompanyId', 'oaApiKey', 'oaVaId', 'oaVaApiKey', 'simBriefPilotId']
                 const missing = required.some(f => !d[f])
                 if (missing) {
                   // Pre-fill form and open
                   setSettingsForm({
                     siApiKey: d.siApiKey || '',
+                    siVaApiKey: d.siVaApiKey || '',
                     oaCompanyId: d.oaCompanyId || '',
                     oaApiKey: d.oaApiKey || '',
                     oaVaId: d.oaVaId || '',
@@ -1344,7 +1346,7 @@ export default function AppMinimal() {
 
             {/* SayIntentions */}
             <div style={{ marginBottom: '6px', color: '#6b7280', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>SayIntentions.AI</div>
-            {[['siApiKey', 'SI VA Key']].map(([field, label]) => (
+            {[['siApiKey', 'SI Pilot Key'], ['siVaApiKey', 'SI VA Key']].map(([field, label]) => (
               <div key={field} style={{ marginBottom: '12px' }}>
                 <label style={{ display: 'block', color: '#9ca3af', fontSize: '12px', marginBottom: '4px' }}>{label}</label>
                 <input

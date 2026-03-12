@@ -1053,29 +1053,55 @@ class DispatchServer {
         const fs = require('fs');
         const path = require('path');
 
-        // Load settings to get SI API key and VA API key
-        const settingsManager = require('./settingsManager');
-        const settingsResult = settingsManager.load();
-
-        if (!settingsResult.success) {
-          return res.status(400).json({
-            success: false,
-            siStatus: 'error',
-            message: 'Settings not configured',
-            error: 'Cannot load credentials — configure settings first'
-          });
+        // Resolve SI API key:
+        // 1. Prefer live key from %LOCALAPPDATA%\SayIntentionsAI\flight.json (rotates per session)
+        // 2. Fall back to stored settings key
+        let siApiKey = '';
+        let siKeySource = 'settings';
+        try {
+          const flightJsonPath = require('path').join(
+            process.env.LOCALAPPDATA || require('path').join(require('os').homedir(), 'AppData', 'Local'),
+            'SayIntentionsAI', 'flight.json'
+          );
+          if (require('fs').existsSync(flightJsonPath)) {
+            const flightJson = JSON.parse(require('fs').readFileSync(flightJsonPath, 'utf8'));
+            const liveKey = flightJson?.flight_details?.api_key;
+            if (liveKey && liveKey.trim()) {
+              siApiKey = liveKey.trim();
+              siKeySource = 'flight.json';
+              console.log('[crew-to-si] Using SI key from flight.json');
+            }
+          }
+        } catch (e) {
+          console.warn('[crew-to-si] Could not read flight.json:', e.message);
         }
 
-        const siApiKey = settingsResult.data?.siApiKey || '';
+        // Fallback to stored settings key if flight.json key not available
+        if (!siApiKey) {
+          const settingsManager = require('./settingsManager');
+          const settingsResult = settingsManager.load();
+          if (!settingsResult.success) {
+            return res.status(400).json({
+              success: false,
+              siStatus: 'error',
+              message: 'Settings not configured',
+              error: 'Cannot load credentials — configure settings first'
+            });
+          }
+          siApiKey = settingsResult.data?.siApiKey || '';
+          siKeySource = 'settings';
+        }
 
         if (!siApiKey) {
           return res.status(400).json({
             success: false,
             siStatus: 'error',
-            message: 'SI VA Key not configured',
-            error: 'Configure siApiKey (SI VA Key) in settings'
+            message: 'SI API key not available',
+            error: 'Start SayIntentions.AI (key will be read from flight.json) or configure siApiKey in settings'
           });
         }
+
+        console.log(`[crew-to-si] SI key source: ${siKeySource}`);
 
         // Get flight and crew — use provided data or fetch from active flight
         let crewMembers = req.body?.crewMembers;
@@ -1130,10 +1156,22 @@ class DispatchServer {
           null // ofpData - not available here, could be added later
         );
 
-        // va_api_key is REQUIRED by SI importVAData endpoint (separate from outer api_key)
-        // Both are set to siApiKey — the user's VA API key sourced from their SI account
+        // va_api_key (inside payload) is the VA registration key — different from the outer api_key
+        // Load it from settings; outer api_key comes from flight.json (pilot's personal session key)
+        const settingsForVaKey = require('./settingsManager').load();
+        const siVaApiKey = (settingsForVaKey.success ? settingsForVaKey.data?.siVaApiKey : '') || '';
+
+        if (!siVaApiKey) {
+          return res.status(400).json({
+            success: false,
+            siStatus: 'error',
+            message: 'SI VA Key not configured',
+            error: 'Add your SI VA Key (va_api_key) in Settings — it is different from your personal SI key'
+          });
+        }
+
         const payload = {
-          va_api_key: siApiKey.trim(),
+          va_api_key: siVaApiKey.trim(),
           crew_data,
           copilot_data,
           dispatcher_data
