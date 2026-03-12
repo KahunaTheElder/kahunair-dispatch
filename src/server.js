@@ -1131,7 +1131,6 @@ class DispatchServer {
         );
 
         const payload = {
-          va_api_key: siApiKey,
           crew_data,
           copilot_data,
           dispatcher_data

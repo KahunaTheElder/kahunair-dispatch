@@ -184,18 +184,28 @@ function buildDispatcherData(flight, vaProfile) {
  * @returns {{ crew_data: string, copilot_data: string, dispatcher_data: string }}
  */
 function assembleVAPayload(crewProfilesMap, crewMembers, flight, vaProfile, ofpData = null) {
-  // Resolve captain profile
+  // Resolve captain — always override stored profile name with live OnAir member name
   const captainMember = crewMembers.find(m => m.isMe || m.role === 'Captain');
-  const captainProfile = crewProfilesMap['my-pilot'] || null;
+  const captainProfileRaw = crewProfilesMap['my-pilot'] || null;
+  const captainProfile = (captainProfileRaw && captainMember)
+    ? { ...captainProfileRaw, name: captainMember.name }
+    : captainProfileRaw;
 
-  // Resolve FO profile
+  // Resolve FO — use OnAir member name
   const foMember = crewMembers.find(m => m.role === 'First Officer');
-  const foProfile = foMember ? (crewProfilesMap[foMember.id] || null) : null;
+  const foProfileRaw = foMember ? (crewProfilesMap[foMember.id] || null) : null;
+  const foProfile = (foProfileRaw && foMember)
+    ? { ...foProfileRaw, name: foMember.name }
+    : foProfileRaw;
 
-  // Resolve FA profiles
+  // Resolve FA profiles — use OnAir member names
   const faMembers = crewMembers.filter(m => m.role === 'Flight Attendant');
   const faProfiles = faMembers
-    .map(m => crewProfilesMap[m.id] || null)
+    .map(m => {
+      const profile = crewProfilesMap[m.id];
+      if (!profile) return null;
+      return { ...profile, name: m.name }; // live OnAir name takes precedence
+    })
     .filter(Boolean);
 
   const crew_data = buildCrewData(captainProfile, faProfiles, flight, vaProfile);

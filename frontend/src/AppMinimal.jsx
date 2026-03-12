@@ -1,6 +1,48 @@
-﻿import React, { useState, useEffect, useRef } from 'react'
+﻿import React, { useState, useEffect, useRef, useCallback, memo } from 'react'
 import './AppMinimal.css'
 import CrewProfileEditorV2 from './components/CrewProfileEditorV2'
+
+// Module-level memoized component — defined outside AppMinimal so React never
+// unmounts/remounts it during the 1-second telemetry re-renders, preserving scroll.
+const SIDebugPanel = memo(function SIDebugPanel({ show, info, sendStatus, onClose }) {
+  if (!show || !info) return null
+  const payload = info.sentPayload
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.88)', zIndex: 9500,
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px'
+    }}>
+      <div style={{
+        backgroundColor: '#0a0e1a', border: '1px solid #1e3a5f', borderRadius: '8px',
+        padding: '20px', width: '100%', maxWidth: '860px', maxHeight: '88vh',
+        overflowY: 'auto', fontFamily: 'monospace'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+          <h3 style={{ margin: 0, color: '#60a5fa', fontSize: '13px', fontWeight: 700, letterSpacing: '0.05em' }}>SI PAYLOAD INSPECTOR</h3>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#6b7280', fontSize: '16px', cursor: 'pointer' }}>✕</button>
+        </div>
+        <div style={{ marginBottom: '14px', padding: '10px', backgroundColor: '#0f1623', borderRadius: '6px', border: '1px solid #1e3a5f' }}>
+          <div style={{ fontSize: '11px', color: '#9ca3af', marginBottom: '4px' }}>RESPONSE</div>
+          <div style={{ fontSize: '12px', color: info.siStatus === 'error' || sendStatus === 'error' ? '#f87171' : '#4ade80' }}>
+            HTTP {info.siHttpStatus || '?'} — {info.message || '(no message)'}
+          </div>
+          <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '4px' }}>Raw: {JSON.stringify(info.siRawResponse)}</div>
+          <div style={{ fontSize: '10px', color: '#4b5563', marginTop: '4px' }}>{info.timestamp}</div>
+        </div>
+        {payload ? [['crew_data', 'CREW DATA'], ['copilot_data', 'COPILOT DATA'], ['dispatcher_data', 'DISPATCHER DATA']].map(([key, label]) => (
+          <div key={key} style={{ marginBottom: '12px' }}>
+            <div style={{ fontSize: '10px', color: '#60a5fa', letterSpacing: '0.08em', marginBottom: '4px' }}>{label}</div>
+            <pre style={{
+              margin: 0, padding: '10px', backgroundColor: '#0f1623', borderRadius: '4px',
+              border: '1px solid #1e3a5f', fontSize: '11px', color: '#d1d5db',
+              whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.5
+            }}>{payload[key] || '(empty)'}</pre>
+          </div>
+        )) : <div style={{ color: '#6b7280', fontSize: '12px' }}>No payload data captured</div>}
+      </div>
+    </div>
+  )
+})
 
 /**
  * FRESH START: Minimal App
@@ -44,6 +86,7 @@ export default function AppMinimal() {
   const [cargoCharter, setCargoCharter] = useState({ cargos: [], charters: [] }) // NEW: Cargo/Charter data
   const [cargoStatus, setCargoStatus] = useState('IDLE') // IDLE | AWAITING_OA_START | LOADING | READY
   const [noFlight, setNoFlight] = useState(true) // true until OA confirms an active flight
+  const [flightPollKey, setFlightPollKey] = useState(0) // increment to restart flight polling
 
   // Crew profile editor queue state
   const [crewQueue, setCrewQueue] = useState([])       // ordered list of { crewId, member } needing profiles
@@ -52,6 +95,7 @@ export default function AppMinimal() {
   const [siSendStatus, setSiSendStatus] = useState('idle') // idle | sending | sent | error
   const [siDebugInfo, setSiDebugInfo] = useState(null)   // { sentPayload, siRawResponse, siHttpStatus, timestamp }
   const [showSiDebug, setShowSiDebug] = useState(false)  // toggle debug panel
+  const closeSiDebug = useCallback(() => setShowSiDebug(false), [])
 
   // Settings modal state
   const [showSettings, setShowSettings] = useState(false)
@@ -207,6 +251,7 @@ export default function AppMinimal() {
 
   const handleNewFlight = () => {
     // Reset all flight state so a new flight can be loaded fresh
+    setFlightPollKey(k => k + 1) // restart the flight polling interval
     setFlightData({
       flightNumber: null,
       departure: null,
@@ -424,9 +469,15 @@ export default function AppMinimal() {
     return () => clearInterval(interval)
   }, [apiUrl])
 
-  // Poll flight data from /api/flights/active (includes crew) - every 60 seconds
+  // Poll flight data from /api/flights/active (includes crew)
+  // Polls every 60 seconds until flight + crew data is received, then stops.
+  // Reset by flightPollKey (incremented by New Flight button).
   useEffect(() => {
+    let interval
+    let hasData = false
+
     const pollFlight = async () => {
+      if (hasData) return // flight + crew already loaded — skip
       try {
         const res = await fetch(`${apiUrl}/api/flights/active`, {
           signal: AbortSignal.timeout(5000)
@@ -437,9 +488,7 @@ export default function AppMinimal() {
             setNoFlight(false)
             const activeFlight = json.flights[0]
             console.log('[AppMinimal] Active flight:', activeFlight.id, activeFlight.route?.departure?.ICAO, activeFlight.route?.arrival?.ICAO)
-            // Extract crew data (changes frequently)
             setCrew(activeFlight.crew)
-            // Update flight number and departure/arrival from OnAir
             setFlightData(prev => ({
               ...prev || {},
               flightNumber: activeFlight.id,
@@ -447,7 +496,7 @@ export default function AppMinimal() {
               arrival: activeFlight.route?.arrival
             }))
 
-            // NEW: Fetch cargo/charter data
+            // Fetch cargo/charter data
             try {
               const ccRes = await fetch(`${apiUrl}/api/flights/current`, {
                 signal: AbortSignal.timeout(5000)
@@ -464,24 +513,28 @@ export default function AppMinimal() {
                 }
               }
             } catch (err) {
-              // Silently fail cargo/charter - optional feature
+              // Silently fail cargo/charter
+            }
+
+            // Stop polling once we have flight AND crew
+            if (activeFlight.crew?.members?.length > 0) {
+              hasData = true
+              clearInterval(interval)
+              console.log('[AppMinimal] ✓ Flight + crew received — flight polling stopped')
             }
           } else {
             setNoFlight(true)
           }
         }
       } catch (error) {
-        // Silently fail flight data polling
+        // Silently fail
       }
     }
 
-    // Initial poll
     pollFlight()
-
-    // Set up interval (every 60 seconds)
-    const interval = setInterval(pollFlight, 60000)
+    interval = setInterval(pollFlight, 60000)
     return () => clearInterval(interval)
-  }, [apiUrl])
+  }, [apiUrl, flightPollKey])
 
   // Load crew profiles when crew data changes — build queue for missing profiles
   useEffect(() => {
@@ -1113,54 +1166,9 @@ export default function AppMinimal() {
     )
   }
 
-  // SI Debug Panel — shows what was sent to SI and the raw response
-  const SIDebugPanel = () => {
-    if (!showSiDebug || !siDebugInfo) return null
-    const payload = siDebugInfo.sentPayload
-    return (
-      <div style={{
-        position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.88)', zIndex: 9500,
-        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px'
-      }}>
-        <div style={{
-          backgroundColor: '#0a0e1a', border: '1px solid #1e3a5f', borderRadius: '8px',
-          padding: '20px', width: '100%', maxWidth: '860px', maxHeight: '88vh',
-          overflowY: 'auto', fontFamily: 'monospace'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-            <h3 style={{ margin: 0, color: '#60a5fa', fontSize: '13px', fontWeight: 700, letterSpacing: '0.05em' }}>SI PAYLOAD INSPECTOR</h3>
-            <button onClick={() => setShowSiDebug(false)} style={{ background: 'none', border: 'none', color: '#6b7280', fontSize: '16px', cursor: 'pointer' }}>✕</button>
-          </div>
-
-          {/* Response summary */}
-          <div style={{ marginBottom: '14px', padding: '10px', backgroundColor: '#0f1623', borderRadius: '6px', border: '1px solid #1e3a5f' }}>
-            <div style={{ fontSize: '11px', color: '#9ca3af', marginBottom: '4px' }}>RESPONSE</div>
-            <div style={{ fontSize: '12px', color: siDebugInfo.siStatus === 'error' || siSendStatus === 'error' ? '#f87171' : '#4ade80' }}>
-              HTTP {siDebugInfo.siHttpStatus || '?'} — {siDebugInfo.message || '(no message)'}
-            </div>
-            <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '4px' }}>Raw: {JSON.stringify(siDebugInfo.siRawResponse)}</div>
-            <div style={{ fontSize: '10px', color: '#4b5563', marginTop: '4px' }}>{siDebugInfo.timestamp}</div>
-          </div>
-
-          {/* Payload sections */}
-          {payload ? [['crew_data', 'CREW DATA'], ['copilot_data', 'COPILOT DATA'], ['dispatcher_data', 'DISPATCHER DATA']].map(([key, label]) => (
-            <div key={key} style={{ marginBottom: '12px' }}>
-              <div style={{ fontSize: '10px', color: '#60a5fa', letterSpacing: '0.08em', marginBottom: '4px' }}>{label}</div>
-              <pre style={{
-                margin: 0, padding: '10px', backgroundColor: '#0f1623', borderRadius: '4px',
-                border: '1px solid #1e3a5f', fontSize: '11px', color: '#d1d5db',
-                whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.5
-              }}>{payload[key] || '(empty)'}</pre>
-            </div>
-          )) : <div style={{ color: '#6b7280', fontSize: '12px' }}>No payload data captured (send failed before payload was assembled)</div>}
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="app-minimal">
-      <SIDebugPanel />
+      <SIDebugPanel show={showSiDebug} info={siDebugInfo} sendStatus={siSendStatus} onClose={closeSiDebug} />
       <div className="top-bar">
         <TelemetryDisplay />
         <div className="status-indicators">
