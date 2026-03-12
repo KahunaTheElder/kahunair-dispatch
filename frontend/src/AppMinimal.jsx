@@ -465,8 +465,14 @@ export default function AppMinimal() {
 
           if (res.ok) {
             const data = await res.json()
-            if (data.profile) {
+            if (data.profile && data.profile.background) {
+              // Only treat as complete if it has the new-format background field
+              // Old stub profiles (personality: string, no background) are re-queued
               profiles[profileId] = data.profile
+            } else if (data.profile) {
+              // Old-format stub — queue for new editor
+              console.log('[AppMinimal] Old-format profile (no background) for', member.name, '→ re-queued')
+              queue.push({ crewId: profileId, member })
             }
           } else if (res.status === 404) {
             // New crew member — add to queue

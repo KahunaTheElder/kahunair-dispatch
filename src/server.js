@@ -3001,8 +3001,8 @@ class DispatchServer {
     const roleLabels = {
       1: 'First Officer',    // Copilot
       2: 'Flight Attendant', // Cabin crew
-      3: 'Cabin Crew',
-      4: 'Cabin Crew',
+      3: 'Flight Attendant', // Also cabin crew in OnAir
+      4: 'Flight Attendant', // Also cabin crew in OnAir
       5: 'Load Master',
       'Pilot': 'Captain'  // Text value fallback
     };
