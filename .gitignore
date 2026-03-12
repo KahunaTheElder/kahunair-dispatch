@@ -37,3 +37,8 @@ Thumbs.db
 # App specific
 .kahunair/
 credentials.json
+
+# Local artifacts
+*.exe
+tools/
+nul
