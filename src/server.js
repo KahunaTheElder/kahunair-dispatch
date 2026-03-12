@@ -2997,16 +2997,6 @@ class DispatchServer {
   }
 
   formatFlightResponse(flight) {
-    // Role mapping for numeric role values from OnAir
-    const roleLabels = {
-      1: 'First Officer',    // Copilot
-      2: 'Flight Attendant', // Cabin crew
-      3: 'Flight Attendant', // Also cabin crew in OnAir
-      4: 'Flight Attendant', // Also cabin crew in OnAir
-      5: 'Load Master',
-      'Pilot': 'Captain'  // Text value fallback
-    };
-
     // Extract crew member details with detailed logging
     let crewMembers = [];
 
@@ -3024,13 +3014,16 @@ class DispatchServer {
           || crew.Level
           || 'Unknown';
 
-        // Map numeric role values to text labels
-        const roleValue = crew.Role || 1;
-        let crewRole = roleLabels[roleValue] || `Role ${roleValue}`;
-
-        // Special case: if Kahuna is in the crew, he is always Captain
-        if (crewName.includes('Kahuna')) {
+        // OnAir role mapping: 0 = Captain (user), 1 = First Officer, 2+ = Flight Attendant
+        // Use ?? (nullish) not || so that role 0 (Captain) is not treated as falsy
+        const roleValue = crew.Role ?? 0;
+        let crewRole;
+        if (roleValue === 0) {
           crewRole = 'Captain';
+        } else if (roleValue === 1) {
+          crewRole = 'First Officer';
+        } else {
+          crewRole = 'Flight Attendant'; // roles 2+ are all cabin crew
         }
 
         // Special handling for hours calculation
