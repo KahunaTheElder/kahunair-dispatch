@@ -1130,7 +1130,10 @@ class DispatchServer {
           null // ofpData - not available here, could be added later
         );
 
+        // va_api_key is REQUIRED by SI importVAData endpoint (separate from outer api_key)
+        // Both are set to siApiKey — the user's VA API key sourced from their SI account
         const payload = {
+          va_api_key: siApiKey.trim(),
           crew_data,
           copilot_data,
           dispatcher_data

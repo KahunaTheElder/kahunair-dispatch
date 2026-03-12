@@ -1299,6 +1299,14 @@ export default function AppMinimal() {
       </footer>
 
       <div className="new-flight-btn-container">
+        <button
+          className="resend-si-button"
+          onClick={() => crew?.members?.length && fireSISend(crew.members)}
+          disabled={!crew?.members?.length || siSendStatus === 'sending'}
+          title="Resend crew & flight data to SayIntentions.AI"
+        >
+          {siSendStatus === 'sending' ? '⏳ SENDING...' : '↺ RESEND TO SI'}
+        </button>
         <button className="new-flight-button" onClick={handleNewFlight} title="Reset for a new flight">
           ✈ NEW FLIGHT
         </button>
