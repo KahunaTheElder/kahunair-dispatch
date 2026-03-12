@@ -867,8 +867,10 @@ export default function AppMinimal() {
         <div className="flight-params-text">
           TOW {flightData.tow}K | BF {flightData.blockFuel}K | AVG WIND {formattedWind} | ISA {isaDisplay}°
         </div>
-        {/* Cargo: type name + weight */}
-        {cargoCharter.cargos?.length > 0 ? (
+        {/* Cargo: type name + weight, or waiting message */}
+        {noFlight ? (
+          <div className="flight-cargo-text" style={{ color: '#6b7280', fontStyle: 'italic' }}>Waiting for OnAir Flight...</div>
+        ) : cargoCharter.cargos?.length > 0 ? (
           <div className="flight-cargo-text">
             CARGO: {cargoCharter.cargos.map(c => `${c.type} (${c.weight} ${c.weight_unit || 'lbs'})`).join(', ')}
           </div>
@@ -1063,8 +1065,6 @@ export default function AppMinimal() {
       </div>
 
       <FlightInfoDisplay />
-
-      <CargoCharterDisplay />
 
       <CrewDisplay />
 
