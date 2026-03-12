@@ -1137,15 +1137,19 @@ class DispatchServer {
         };
 
         // POST to SayIntentions.AI importVAData
+        // SI expects api_key + payload as application/x-www-form-urlencoded POST body (not query string)
+        const querystring = require('querystring');
+        const cleanKey = siApiKey.trim();
+        const formBody = querystring.stringify({
+          api_key: cleanKey,
+          payload: JSON.stringify(payload)
+        });
+
         console.log('[crew-to-si] Sending to SI importVAData...');
         const siResponse = await axios.post(
           'https://apipri.sayintentions.ai/sapi/importVAData',
-          null,
+          formBody,
           {
-            params: {
-              api_key: siApiKey,
-              payload: JSON.stringify(payload)
-            },
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             timeout: 15000
           }

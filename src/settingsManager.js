@@ -141,10 +141,10 @@ class SettingsManager {
         credentials: {}
       };
 
-      // Encrypt each sensitive field
+      // Encrypt each sensitive field — trim first to strip copy-paste whitespace/newlines
       for (const field of this.encryptedFields) {
         if (settings[field]) {
-          encrypted.credentials[field] = this.encryptField(String(settings[field]));
+          encrypted.credentials[field] = this.encryptField(String(settings[field]).trim());
         }
       }
 
