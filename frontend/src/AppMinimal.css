@@ -566,157 +566,55 @@ body {
   padding: 4px 0;
 }
 
-.cargo-charter-columns {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2rem;
-}
-
+.cargo-charter-columns,
+.charter-column,
 .cargo-column,
-.charter-column {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
+.charter-type-label,
+.charter-item,
+.charter-icon,
+.charter-details,
+.charter-name,
+.charter-info,
+.charter-type,
+.charter-pax,
+.charter-route,
+.cargo-type-label,
+.cargo-item,
+.cargo-icon,
+.cargo-details,
+.cargo-name,
+.cargo-info,
+.cargo-type,
+.cargo-weight,
+.cargo-route { /* legacy — superseded by compact line layout below */ }
+
+/* Compact charter line: Eco 3 Film Crew LEBB-UKDR | Bus 17 Soldiers LEBB-UKDR */
+.charter-line {
+  font-size: 11px;
+  color: #d1d5db;
+  line-height: 1.6;
+  margin-bottom: 4px;
 }
 
-/* Charter column - LEFT */
-.charter-column {
-  order: -1;
+.charter-sep {
+  color: #4b5563;
 }
 
-.charter-type-label {
-  font-size: 10px;
+.charter-cabin {
   font-weight: 700;
   color: #60a5fa;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid #444;
-  margin-bottom: 8px;
 }
 
-.charter-item {
+/* Compact cargo lines */
+.cargo-line-list {
   display: flex;
-  gap: 10px;
-  align-items: flex-start;
-  padding: 4px 0;
-  margin: 0;
-  border-left: 2px solid #60a5fa;
-  padding-left: 8px;
-}
-
-.charter-icon {
-  font-size: 14px;
-  flex-shrink: 0;
+  flex-direction: column;
+  gap: 2px;
   margin-top: 2px;
 }
 
-.charter-details {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  flex: 1;
-  min-width: 0;
-}
-
-.charter-name {
+.cargo-line {
   font-size: 11px;
-  font-weight: 600;
-  color: #60a5fa;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-}
-
-.charter-info {
-  display: flex;
-  gap: 8px;
-  font-size: 9px;
-  color: #9ca3af;
-  font-weight: 500;
-  flex-wrap: wrap;
-}
-
-.charter-type {
-  background: #60a5fa;
-  padding: 2px 6px;
-  border-radius: 2px;
-  color: white;
-  font-weight: 600;
-}
-
-.charter-pax {
   color: #d1d5db;
-}
-
-.charter-route {
-  color: #9ca3af;
-}
-
-/* Cargo column - RIGHT */
-.cargo-type-label {
-  font-size: 10px;
-  font-weight: 700;
-  color: #fbbf24;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid #444;
-  margin-bottom: 8px;
-}
-
-.cargo-item {
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-  padding: 4px 0;
-  margin: 0;
-  border-left: 2px solid #fbbf24;
-  padding-left: 8px;
-}
-
-.cargo-icon {
-  font-size: 14px;
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-
-.cargo-details {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  flex: 1;
-  min-width: 0;
-}
-
-.cargo-name {
-  font-size: 11px;
-  font-weight: 600;
-  color: #fbbf24;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-}
-
-.cargo-info {
-  display: flex;
-  gap: 8px;
-  font-size: 9px;
-  color: #9ca3af;
-  font-weight: 500;
-  flex-wrap: wrap;
-}
-
-.cargo-type {
-  background: #fbbf24;
-  padding: 2px 6px;
-  border-radius: 2px;
-  color: white;
-  font-weight: 600;
-}
-
-.cargo-weight {
-  color: #d1d5db;
-}
-
-.cargo-route {
-  color: #9ca3af;
+  line-height: 1.5;
 }

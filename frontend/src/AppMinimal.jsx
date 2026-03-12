@@ -490,49 +490,35 @@ export default function AppMinimal() {
       return null // Don't show if no cargo/charter (IDLE or READY with empty flight)
     }
 
+    const cabinAbbr = { 'Eco': 'Eco', 'Business': 'Bus', 'First': '1st' }
+
     return (
       <div className="cargo-charter-section">
         <div className="cargo-charter-title">📦 CARGO & CHARTERS</div>
-        <div className="cargo-charter-columns">
-          {/* CHARTERS - LEFT COLUMN */}
-          {cargoCharter.charters?.length > 0 && (
-            <div className="charter-column">
-              <div className="charter-type-label">Charters ({cargoCharter.charters.length})</div>
-              {cargoCharter.charters.map((charter) => (
-                <div key={charter.id} className="charter-item">
-                  <span className="charter-icon">✈️</span>
-                  <div className="charter-details">
-                    <div className="charter-name">{charter.description}</div>
-                    <div className="charter-info">
-                      <span className="charter-type">{charter.type}</span>
-                      <span className="charter-pax">{charter.passengers} pax</span>
-                      <span className="charter-route">{charter.from} → {charter.to}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
 
-          {/* CARGO - RIGHT COLUMN */}
-          {cargoCharter.cargos?.length > 0 && (
-            <div className="cargo-column">
-              <div className="cargo-type-label">Cargo ({cargoCharter.cargos.length})</div>
-              {cargoCharter.cargos.map((cargo) => (
-                <div key={cargo.id} className="cargo-item">
-                  <span className="cargo-icon">📦</span>
-                  <div className="cargo-details">
-                    <div className="cargo-name">{cargo.description}</div>
-                    <div className="cargo-info">
-                      <span className="cargo-type">{cargo.type}</span>
-                      <span className="cargo-weight">{cargo.weight} {cargo.weight_unit || 'lbs'}</span>
-                      <span className="cargo-route">{cargo.from} → {cargo.to}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+        {/* CHARTERS - single compact line */}
+        {cargoCharter.charters?.length > 0 && (
+          <div className="charter-line">
+            {cargoCharter.charters.map((charter, i) => (
+              <span key={charter.id}>
+                {i > 0 && <span className="charter-sep"> | </span>}
+                <span className="charter-cabin">{cabinAbbr[charter.cabinClass] || charter.cabinClass}</span>
+                {' '}{charter.passengers} {charter.description} {charter.from}-{charter.to}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* CARGO - one line per item */}
+        {cargoCharter.cargos?.length > 0 && (
+          <div className="cargo-line-list">
+            {cargoCharter.cargos.map((cargo) => (
+              <div key={cargo.id} className="cargo-line">
+                {cargo.description} · {cargo.weight} {cargo.weight_unit || 'lbs'} · {cargo.from}-{cargo.to}
+              </div>
+            ))}
+          </div>
+        )}
         </div>
       </div>
     )
