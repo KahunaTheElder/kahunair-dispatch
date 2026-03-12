@@ -391,18 +391,39 @@ class DispatchServer {
         const settingsManager = require('./settingsManager');
         const result = settingsManager.load();
 
-        if (!result.success) {
-          return res.status(404).json(result);
+        if (result.success) {
+          return res.json(result);
         }
 
-        res.json(result);
+        // No settings file yet — attempt migration from old credentials store
+        const oldCreds = credentialsManager.loadCredentials();
+        if (oldCreds) {
+          console.log('[API /api/settings GET] No settings file — returning migrated credentials for pre-fill');
+          return res.json({
+            success: true,
+            migrated: true,
+            message: 'Pre-filled from legacy credentials (not yet saved to encrypted store)',
+            data: {
+              siApiKey: oldCreds.SI_API_KEY || '',
+              siVaApiKey: oldCreds.SI_VA_API_KEY || '',
+              oaCompanyId: oldCreds.ONAIR_COMPANY_ID || '',
+              oaApiKey: oldCreds.ONAIR_COMPANY_API_KEY || '',
+              oaVaId: oldCreds.ONAIR_VA_ID || '',
+              oaVaApiKey: oldCreds.ONAIR_VA_API_KEY || '',
+              oaPilotId: '',
+              simBriefPilotId: oldCreds.SIMBRIEF_PILOT_ID || ''
+            }
+          });
+        }
+
+        return res.status(404).json(result);
       } catch (error) {
         console.error('[API /api/settings GET]', error.message);
         res.status(500).json({
           success: false,
           message: 'Failed to load settings',
           error: error.message,
-          recovery: 'Delete settings file at %APPDATA%\KahunaAir\settings.json and reinitialize via POST /api/settings'
+          recovery: 'Delete settings file at %APPDATA%\\KahunaAir\\settings.json and reinitialize via POST /api/settings'
         });
       }
     });
