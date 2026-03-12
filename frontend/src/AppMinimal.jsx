@@ -92,10 +92,12 @@ export default function AppMinimal() {
   const [crewQueue, setCrewQueue] = useState([])       // ordered list of { crewId, member } needing profiles
   const [queueIndex, setQueueIndex] = useState(0)      // current position in queue
   const [skipConfirm, setSkipConfirm] = useState(null) // crewId pending skip confirm, or null
-  const [siSendStatus, setSiSendStatus] = useState('idle') // idle | sending | sent | error
+  const [siSendStatus, setSiSendStatus] = useState('idle') // idle | sending | sent | error | waiting
   const [siDebugInfo, setSiDebugInfo] = useState(null)   // { sentPayload, siRawResponse, siHttpStatus, timestamp }
   const [showSiDebug, setShowSiDebug] = useState(false)  // toggle debug panel
   const closeSiDebug = useCallback(() => setShowSiDebug(false), [])
+  const [siRunning, setSiRunning] = useState(null)       // null=unknown, true=running, false=not running
+  const pendingSISendRef = useRef(null)                  // crew members queued to send once SI comes up
 
   // Settings modal state
   const [showSettings, setShowSettings] = useState(false)
@@ -151,8 +153,24 @@ export default function AppMinimal() {
     }
   }
 
+  // Auto-send when SI comes up while a send is pending
+  useEffect(() => {
+    if (siRunning === true && pendingSISendRef.current !== null) {
+      const members = pendingSISendRef.current
+      pendingSISendRef.current = null
+      fireSISend(members)
+    }
+  }, [siRunning]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Fire SI send after all profiles are handled
   const fireSISend = async (members) => {
+    // If SI is confirmed not running, queue the send until it starts
+    if (siRunning === false) {
+      console.log('[AppMinimal] SI not running — queuing send until detected')
+      pendingSISendRef.current = members
+      setSiSendStatus('waiting')
+      return
+    }
     setSiSendStatus('sending')
     try {
       console.log('[AppMinimal] Firing SI send...')
@@ -282,6 +300,7 @@ export default function AppMinimal() {
     setQueueIndex(0)
     setEditingCrewId(null)
     setSiSendStatus('idle')
+    pendingSISendRef.current = null
     setSkipConfirm(null)
   }
 
@@ -407,23 +426,32 @@ export default function AppMinimal() {
 
         if (backRes.ok) {
           console.log(`[AppMinimal] ✓ Backend is healthy (poll #${pollCount})`)
-          // Backend is up, assume all services are available (individual data polls will fail if not)
           setBackendStatus('online')
           setOnAirStatus('online')
-          setSiStatus('online')
           setSimConnectStatus('online')
           setSimBriefStatus('online')
+          // Check SI independently via flight.json detection
+          try {
+            const siRes = await fetch(`${apiUrl}/api/si/status`, { signal: AbortSignal.timeout(3000) })
+            if (siRes.ok) {
+              const siData = await siRes.json()
+              setSiRunning(siData.running)
+              setSiStatus(siData.running ? 'online' : 'warning')
+            }
+          } catch {
+            setSiRunning(null)
+            setSiStatus('checking')
+          }
         } else {
           console.warn(`[AppMinimal] Backend health check returned ${backRes.status}`)
-          // Backend is down
           setBackendStatus('offline')
           setOnAirStatus('offline')
           setSiStatus('offline')
+          setSiRunning(null)
           setSimConnectStatus('offline')
           setSimBriefStatus('offline')
         }
       } catch (error) {
-        // Distinguish between timeout and other errors
         if (error.name === 'AbortError' || error.message.includes('signal')) {
           console.warn(`[AppMinimal] Status poll #${pollCount} TIMEOUT: Backend still initializing (${(timeout / 1000).toFixed(0)}s timeout reached)`)
         } else {
@@ -432,6 +460,7 @@ export default function AppMinimal() {
         setBackendStatus('offline')
         setOnAirStatus('offline')
         setSiStatus('offline')
+        setSiRunning(null)
         setSimConnectStatus('offline')
         setSimBriefStatus('offline')
       }
@@ -743,7 +772,8 @@ export default function AppMinimal() {
     const dotColor = {
       'online': '#4ade80',
       'offline': '#ef4444',
-      'checking': '#fbbf24'
+      'checking': '#fbbf24',
+      'warning': '#f59e0b'
     }[status] || '#9ca3af'
 
     return (
@@ -1119,6 +1149,8 @@ export default function AppMinimal() {
       ? <span onClick={() => setShowSiDebug(v => !v)} style={{ marginLeft: '10px', fontSize: '11px', color: '#4ade80', fontWeight: 600, cursor: siDebugInfo ? 'pointer' : 'default', textDecoration: siDebugInfo ? 'underline dotted' : 'none' }}>✓ Sent to SI {siDebugInfo ? '(details)' : ''}</span>
       : siSendStatus === 'sending'
       ? <span style={{ marginLeft: '10px', fontSize: '11px', color: '#fbbf24', fontWeight: 600 }}>⟳ Sending...</span>
+      : siSendStatus === 'waiting'
+      ? <span style={{ marginLeft: '10px', fontSize: '11px', color: '#f59e0b', fontWeight: 600 }}>⏳ Waiting for SI...</span>
       : siSendStatus === 'error'
       ? <span onClick={() => setShowSiDebug(v => !v)} style={{ marginLeft: '10px', fontSize: '11px', color: '#f87171', fontWeight: 600, cursor: siDebugInfo ? 'pointer' : 'default', textDecoration: siDebugInfo ? 'underline dotted' : 'none' }}>⚠ SI Error {siDebugInfo ? '(details)' : ''}</span>
       : null
@@ -1304,10 +1336,12 @@ export default function AppMinimal() {
         <button
           className="resend-si-button"
           onClick={() => crew?.members?.length && fireSISend(crew.members)}
-          disabled={!crew?.members?.length || siSendStatus === 'sending'}
-          title="Resend crew & flight data to SayIntentions.AI"
+          disabled={!crew?.members?.length || siSendStatus === 'sending' || siSendStatus === 'waiting'}
+          title={siRunning === false ? 'SayIntentions.AI not detected — will send automatically when SI starts' : 'Resend crew & flight data to SayIntentions.AI'}
         >
-          {siSendStatus === 'sending' ? '⏳ SENDING...' : '↺ RESEND TO SI'}
+          {siSendStatus === 'sending' ? '⏳ SENDING...'
+            : siSendStatus === 'waiting' ? '⏳ WAITING FOR SI...'
+            : '↺ RESEND TO SI'}
         </button>
         <button className="new-flight-button" onClick={handleNewFlight} title="Reset for a new flight">
           ✈ NEW FLIGHT

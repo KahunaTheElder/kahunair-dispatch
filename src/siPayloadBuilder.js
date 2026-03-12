@@ -195,7 +195,7 @@ function buildDispatcherData(flight, vaProfile) {
 function assembleVAPayload(crewProfilesMap, crewMembers, flight, vaProfile, ofpData = null) {
   // Resolve captain — always override stored profile name with live OnAir member name
   const captainMember = crewMembers.find(m => m.isMe || m.role === 'Captain');
-  const captainProfileRaw = captainMember ? (crewProfilesMap[captainMember.id] || null) : null;
+  const captainProfileRaw = crewProfilesMap['my-pilot'] || null; // captain always saved under 'my-pilot' key
   const captainProfile = (captainProfileRaw && captainMember)
     ? { ...captainProfileRaw, name: captainMember.name }
     : captainProfileRaw;

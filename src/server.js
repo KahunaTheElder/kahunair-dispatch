@@ -1028,6 +1028,36 @@ class DispatchServer {
     });
 
     /**
+     * GET /api/si/status
+     * Check whether SayIntentions.AI is running by looking for flight.json.
+     * Returns { running: bool, callsign: string|null }
+     */
+    this.app.get('/api/si/status', (req, res) => {
+      try {
+        const fs = require('fs');
+        const path = require('path');
+        const os = require('os');
+        const flightJsonPath = path.join(
+          process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local'),
+          'SayIntentionsAI', 'flight.json'
+        );
+        if (fs.existsSync(flightJsonPath)) {
+          try {
+            const flightJson = JSON.parse(fs.readFileSync(flightJsonPath, 'utf8'));
+            const callsign = flightJson?.flight_details?.callsign || null;
+            return res.json({ running: true, callsign });
+          } catch {
+            return res.json({ running: true, callsign: null }); // file exists but unreadable
+          }
+        } else {
+          return res.json({ running: false, callsign: null });
+        }
+      } catch (e) {
+        return res.json({ running: false, callsign: null, error: e.message });
+      }
+    });
+
+    /**
      * POST /api/dispatch/crew-to-si
      * Assemble crew profiles for the active flight, build the importVAData payload,
      * and POST to SayIntentions.AI.
@@ -1128,7 +1158,7 @@ class DispatchServer {
         const crewProfilesMap = {};
 
         for (const member of crewMembers) {
-          const profileId = member.id; // always use OnAir UUID — captain profile stored by UUID, not 'my-pilot'
+          const profileId = member.isMe ? 'my-pilot' : member.id; // captain always uses 'my-pilot' key
           const result = crewManager.load(profileId);
           if (result.success && result.profile) {
             crewProfilesMap[profileId] = result.profile;
@@ -1252,7 +1282,7 @@ class DispatchServer {
         const crewManager = new CrewProfileManager();
         const crewProfilesMap = {};
         for (const member of crewMembers) {
-          const profileId = member.id; // always use OnAir UUID
+          const profileId = member.isMe ? 'my-pilot' : member.id; // captain always uses 'my-pilot'
           const result = crewManager.load(profileId);
           if (result.success && result.profile) crewProfilesMap[profileId] = result.profile;
         }
