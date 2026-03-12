@@ -43,7 +43,7 @@ export default function AppMinimal() {
   const [crewProfiles, setCrewProfiles] = useState({}) // crewId -> profile mapping
   const [cargoCharter, setCargoCharter] = useState({ cargos: [], charters: [] }) // NEW: Cargo/Charter data
   const [cargoStatus, setCargoStatus] = useState('IDLE') // IDLE | AWAITING_OA_START | LOADING | READY
-  const [noFlight, setNoFlight] = useState(false) // true when OA returns no active flight
+  const [noFlight, setNoFlight] = useState(true) // true until OA confirms an active flight
 
   // Crew profile editor queue state
   const [crewQueue, setCrewQueue] = useState([])       // ordered list of { crewId, member } needing profiles
