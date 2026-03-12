@@ -130,17 +130,17 @@ export default function AppMinimal() {
   }
 
   // Advance queue after save or skip
-  const advanceQueue = async (currentIndex, queue, updatedMembers) => {
+  const advanceQueue = (currentIndex, queue, updatedMembers) => {
     const nextIndex = currentIndex + 1
     if (nextIndex < queue.length) {
       setQueueIndex(nextIndex)
       setEditingCrewId(queue[nextIndex].crewId)
     } else {
-      // Queue exhausted — fire SI send
+      // Queue exhausted — close editor first, then fire SI send in background
       setEditingCrewId(null)
       setCrewQueue([])
       setQueueIndex(0)
-      await fireSISend(updatedMembers)
+      fireSISend(updatedMembers) // fire-and-forget, don't await
     }
   }
 
@@ -431,6 +431,8 @@ export default function AppMinimal() {
   useEffect(() => {
     if (!crew || !crew.members || crew.members.length === 0) return
 
+    let isMounted = true // prevent stale state updates if crew changes mid-fetch
+
     const loadCrewProfiles = async () => {
       const profiles = {}
       const queue = []
@@ -442,6 +444,7 @@ export default function AppMinimal() {
       })
 
       for (const member of sorted) {
+        if (!isMounted) return // crew changed while loading — bail out
         // Captain always uses my-pilot profile key
         const profileId = member.isMe ? 'my-pilot' : member.id
 
@@ -465,6 +468,8 @@ export default function AppMinimal() {
         }
       }
 
+      if (!isMounted) return // bail out before any state updates
+
       setCrewProfiles(profiles)
 
       if (queue.length === 0) {
@@ -474,7 +479,7 @@ export default function AppMinimal() {
         setCrewQueue([])
         setQueueIndex(0)
         setEditingCrewId(null)
-        await fireSISend(crew.members)
+        fireSISend(crew.members) // fire-and-forget
       } else {
         // Open editor for first in queue
         setCrewQueue(queue)
@@ -485,6 +490,7 @@ export default function AppMinimal() {
     }
 
     loadCrewProfiles()
+    return () => { isMounted = false }
   }, [crew, apiUrl])
 
   // Fetch OFP data from SimBrief via backend - provides route, alternate, procedures, weights
@@ -869,7 +875,7 @@ export default function AppMinimal() {
         </div>
         {/* Cargo: type name + weight, or waiting message */}
         {noFlight ? (
-          <div className="flight-cargo-text" style={{ color: '#6b7280', fontStyle: 'italic' }}>Waiting for OnAir Flight...</div>
+          <div className="flight-cargo-text" style={{ color: '#fbbf24' }}>⏳ Waiting for OnAir Flight...</div>
         ) : cargoCharter.cargos?.length > 0 ? (
           <div className="flight-cargo-text">
             CARGO: {cargoCharter.cargos.map(c => `${c.type} (${c.weight} ${c.weight_unit || 'lbs'})`).join(', ')}
