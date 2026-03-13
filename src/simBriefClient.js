@@ -195,8 +195,13 @@ class SimBriefClient {
           iata: altIATA
         },
 
-        // Flight plan details
-        route: getField(rawData, 'route', 'route') || getField(generalData, 'route') || '',
+        // Flight plan details — defend against xml2js returning an object if <route> has child elements
+        route: (() => {
+          const r = getField(rawData, 'route', 'route') || getField(generalData, 'route');
+          if (typeof r === 'string') return r;
+          if (r && typeof r === 'object') return r._ || r.route || r.text || '';
+          return '';
+        })(),
 
         // Cruise information
         cruise: {

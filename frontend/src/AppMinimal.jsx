@@ -90,7 +90,7 @@ export default function AppMinimal() {
 
   // Resize window when crew section collapses/expands
   useEffect(() => {
-    try { localStorage.setItem('crewCollapsed', crewCollapsed) } catch {}
+    try { localStorage.setItem('crewCollapsed', crewCollapsed) } catch { }
     if (!window.electronAPI?.setWindowHeight) return
     const timer = setTimeout(() => {
       const el = appRootRef.current
@@ -1145,7 +1145,7 @@ export default function AppMinimal() {
     const arrIcao = flightData.arrival?.ICAO || '----'
     const altIcao = flightData.alternate?.ICAO || '----'
     const altName = flightData.alternate?.name || '----'
-    const route = flightData.route || ''
+    const route = typeof flightData.route === 'string' ? flightData.route : ''
 
     const depRwy = siProcedures?.depRwy || procedures?.departure?.runway || '---'
     const depSid = siProcedures?.sid || procedures?.departure?.sid || '---'
@@ -1219,24 +1219,24 @@ export default function AppMinimal() {
         {/* Charters: sorted Eco → Bus → 1st, class badge + count + charter type */}
         {cargoCharter.charters?.length > 0 ? (
           <div className="flight-passenger-text">
-          {['Eco', 'Business', 'First'].flatMap(cls =>
-            cargoCharter.charters.filter(ch => (ch.cabinClass || 'Eco') === cls)
-          ).map((ch, i) => {
-            const abbr = { 'Eco': 'Eco', 'Business': 'Bus', 'First': '1st' }
-            const cls = ch.cabinClass || 'Eco'
-            return (
-              <span key={ch.id}>
-                {i > 0 && <span className="pax-sep"> | </span>}
-                <span className={`pax-class-badge pax-class-${cls.toLowerCase()}`}>{abbr[cls] || cls}</span>
-                {' '}{ch.passengers} {ch.type}
-              </span>
-            )
-          })}
-        </div>
+            {['Eco', 'Business', 'First'].flatMap(cls =>
+              cargoCharter.charters.filter(ch => (ch.cabinClass || 'Eco') === cls)
+            ).map((ch, i) => {
+              const abbr = { 'Eco': 'Eco', 'Business': 'Bus', 'First': '1st' }
+              const cls = ch.cabinClass || 'Eco'
+              return (
+                <span key={ch.id}>
+                  {i > 0 && <span className="pax-sep"> | </span>}
+                  <span className={`pax-class-badge pax-class-${cls.toLowerCase()}`}>{abbr[cls] || cls}</span>
+                  {' '}{ch.passengers} {ch.type}
+                </span>
+              )
+            })}
+          </div>
         ) : (flightData.passengerTypes && flightData.passengerTypes.length > 0) && (
-        <div className="flight-passenger-text">
-          PASSENGER TYPES: {flightData.passengerTypes.join(', ')}
-        </div>
+          <div className="flight-passenger-text">
+            PASSENGER TYPES: {flightData.passengerTypes.join(', ')}
+          </div>
         )}
       </div>
     )
@@ -1329,14 +1329,14 @@ export default function AppMinimal() {
     const siBadge = siSendStatus === 'applied'
       ? <span onClick={(e) => { e.stopPropagation(); setShowSiDebug(v => !v) }} style={{ marginLeft: '10px', fontSize: '11px', color: '#4ade80', fontWeight: 600, cursor: siDebugInfo ? 'pointer' : 'default', textDecoration: siDebugInfo ? 'underline dotted' : 'none' }}>✓ Active in new session! {siDebugInfo ? '(details)' : ''}</span>
       : siSendStatus === 'sent'
-      ? <span onClick={(e) => { e.stopPropagation(); setShowSiDebug(v => !v) }} style={{ marginLeft: '10px', fontSize: '11px', color: '#86efac', fontWeight: 600, cursor: siDebugInfo ? 'pointer' : 'default', textDecoration: siDebugInfo ? 'underline dotted' : 'none' }}>✓ Sent — applies next SI flight {siDebugInfo ? '(details)' : ''}</span>
-      : siSendStatus === 'sending'
-      ? <span style={{ marginLeft: '10px', fontSize: '11px', color: '#fbbf24', fontWeight: 600 }}>⟳ Sending...</span>
-      : siSendStatus === 'waiting'
-      ? <span style={{ marginLeft: '10px', fontSize: '11px', color: '#f59e0b', fontWeight: 600 }}>⏳ Waiting for SI...</span>
-      : siSendStatus === 'error'
-      ? <span onClick={(e) => { e.stopPropagation(); setShowSiDebug(v => !v) }} style={{ marginLeft: '10px', fontSize: '11px', color: '#f87171', fontWeight: 600, cursor: siDebugInfo ? 'pointer' : 'default', textDecoration: siDebugInfo ? 'underline dotted' : 'none' }}>⚠ SI Error {siDebugInfo ? '(details)' : ''}</span>
-      : null
+        ? <span onClick={(e) => { e.stopPropagation(); setShowSiDebug(v => !v) }} style={{ marginLeft: '10px', fontSize: '11px', color: '#86efac', fontWeight: 600, cursor: siDebugInfo ? 'pointer' : 'default', textDecoration: siDebugInfo ? 'underline dotted' : 'none' }}>✓ Sent — applies next SI flight {siDebugInfo ? '(details)' : ''}</span>
+        : siSendStatus === 'sending'
+          ? <span style={{ marginLeft: '10px', fontSize: '11px', color: '#fbbf24', fontWeight: 600 }}>⟳ Sending...</span>
+          : siSendStatus === 'waiting'
+            ? <span style={{ marginLeft: '10px', fontSize: '11px', color: '#f59e0b', fontWeight: 600 }}>⏳ Waiting for SI...</span>
+            : siSendStatus === 'error'
+              ? <span onClick={(e) => { e.stopPropagation(); setShowSiDebug(v => !v) }} style={{ marginLeft: '10px', fontSize: '11px', color: '#f87171', fontWeight: 600, cursor: siDebugInfo ? 'pointer' : 'default', textDecoration: siDebugInfo ? 'underline dotted' : 'none' }}>⚠ SI Error {siDebugInfo ? '(details)' : ''}</span>
+              : null
 
     // Collapsed summary: names of crew members
     const crewSummary = crew.members.map(m => {
@@ -1550,8 +1550,8 @@ export default function AppMinimal() {
         >
           {siSendStatus === 'sending' ? '⏳ SENDING...'
             : siSendStatus === 'waiting' ? '⏳ WAITING FOR SI...'
-            : siSendStatus === 'applied' ? '✓ ACTIVE — RESEND?'
-            : '↺ RESEND TO SI'}
+              : siSendStatus === 'applied' ? '✓ ACTIVE — RESEND?'
+                : '↺ RESEND TO SI'}
         </button>
         <button className="new-flight-button" onClick={handleNewFlight} title="Reset for a new flight">
           ✈ NEW FLIGHT

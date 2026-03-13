@@ -1081,9 +1081,8 @@ class DispatchServer {
           return res.json({ success: false, error: 'flight.json not found' });
         }
         const flightJson = JSON.parse(fs.readFileSync(flightJsonPath, 'utf8'));
-        const fd = flightJson?.flight_details || {};
-        const cf = fd.current_flight || {};
-        const awx = fd.arrival_wx || {};
+        const cf = flightJson?.current_flight || {};
+        const awx = flightJson?.arrival_wx || {};
         return res.json({
           success: true,
           procedures: {
@@ -1335,7 +1334,7 @@ class DispatchServer {
           const VAProfileManager = require('./vaProfileManager');
           const vaResult = new VAProfileManager().load();
           if (vaResult.success && vaResult.profile) vaProfile = vaResult.profile;
-        } catch (e) {}
+        } catch (e) { }
 
         const { crew_data, copilot_data, dispatcher_data } = siPayloadBuilder.assembleVAPayload(
           crewProfilesMap, crewMembers, flight, vaProfile, null
@@ -3177,7 +3176,7 @@ class DispatchServer {
       const sm = require('./settingsManager');
       const s = sm.load();
       configuredPilotId = s.success ? (s.data?.oaPilotId || null) : null;
-    } catch (e) {}
+    } catch (e) { }
 
     // Extract crew member details with detailed logging
     let crewMembers = [];
@@ -3232,7 +3231,7 @@ class DispatchServer {
           // REMOVED: roleValue===0 — unreliable, any hired crew can occupy slot 0
           // REMOVED: isKahuna company ID — matches ALL Kahuna Air crew members, not just user
           isMe: (configuredPilotId && peopleId && configuredPilotId === peopleId) ||
-                crewName.toLowerCase().includes('kahuna'),
+            crewName.toLowerCase().includes('kahuna'),
           // Career flight hours (total before hiring + company hours for founders)
           hours: Math.round(careerHours),
           // Career landings (total across all companies)
