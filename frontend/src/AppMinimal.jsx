@@ -1048,28 +1048,32 @@ export default function AppMinimal() {
     const vs = telemetry.speed?.verticalSpeed ? Math.round(telemetry.speed.verticalSpeed) : '---'
 
     // Format ETE as "Xh Ymm" if >= 60 minutes, otherwise just minutes
-    // Computed via haversine from plane lat/lon (SimConnect) to destination lat/lon (SimBrief OFP)
+    // Prefer GPS ETE SimVar (route-aware, wind-corrected); fall back to haversine if GPS has no active destination
     let ete = '---'
     let eteUnit = 'MIN'
+    const gpsEteSeconds = telemetry.navigation?.eteSeconds
     const planeLat = telemetry.position?.lat
     const planeLon = telemetry.position?.lon
     const gsRaw = telemetry.speed?.groundSpeed
-    if (planeLat && planeLon && destCoords?.lat && destCoords?.lon && gsRaw > 5) {
+    const formatEteMin = (eteMin) => {
+      if (eteMin >= 60) {
+        eteUnit = ''
+        return `${Math.floor(eteMin / 60)}h ${eteMin % 60}m`
+      }
+      return eteMin
+    }
+    if (gpsEteSeconds > 30) {
+      // GPS ETE: follows actual flight plan route through all remaining waypoints
+      ete = formatEteMin(Math.round(gpsEteSeconds / 60))
+    } else if (planeLat && planeLon && destCoords?.lat && destCoords?.lon && gsRaw > 5) {
+      // Haversine fallback: straight-line to destination (used when GPS has no active dest)
       const toRad = d => d * Math.PI / 180
       const R = 3440.065 // Earth radius in NM
       const dLat = toRad(destCoords.lat - planeLat)
       const dLon = toRad(destCoords.lon - planeLon)
       const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(planeLat)) * Math.cos(toRad(destCoords.lat)) * Math.sin(dLon / 2) ** 2
       const distNm = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-      const eteMin = Math.round((distNm / gsRaw) * 60)
-      if (eteMin >= 60) {
-        const hours = Math.floor(eteMin / 60)
-        const mins = eteMin % 60
-        ete = `${hours}h ${mins}m`
-        eteUnit = ''
-      } else {
-        ete = eteMin
-      }
+      ete = formatEteMin(Math.round((distNm / gsRaw) * 60))
     }
 
     const pax = telemetry.passengers?.count ? Math.round(telemetry.passengers.count) : '---'
@@ -1161,7 +1165,7 @@ export default function AppMinimal() {
     const chgArrRwy = ofpBase && siProcedures?.arrRwy && siProcedures.arrRwy !== ofpBase.arrRwy
 
     const siGate = siProcedures?.gate || null
-    const siTaxiPath = siProcedures?.taxiPath || null
+    const siTaxiRoute = Array.isArray(siProcedures?.taxiRoute) ? siProcedures.taxiRoute : null
 
     // Format wind as direction/speed (e.g., "180/15")
     const windDir = flightData.avgWindDir && flightData.avgWindDir !== '---' ? String(flightData.avgWindDir).padStart(3, '0') : '---'
@@ -1191,11 +1195,11 @@ export default function AppMinimal() {
           <span style={chgArrRwy ? { color: '#fbbf24' } : undefined} title={chgArrRwy ? `was: ${ofpBase.arrRwy}` : undefined}>RWY {arrRwy}{chgArrRwy ? ' ↑' : ''}</span>
           {approach && <span style={{ color: '#60a5fa', fontWeight: 600 }}>{' | '}APPR {approach}</span>}
         </div>
-        {(siGate || siTaxiPath) && (
+        {(siGate || siTaxiRoute) && (
           <div className="flight-procedures-text" style={{ color: '#34d399' }}>
             {siGate && <span>GATE {siGate}</span>}
-            {siGate && siTaxiPath && <span>{' | '}</span>}
-            {siTaxiPath && <span>TAXI {siTaxiPath}</span>}
+            {siGate && siTaxiRoute && <span>{' | '}</span>}
+            {siTaxiRoute && <span>TAXI {siTaxiRoute.join(' → ')}</span>}
           </div>
         )}
         <div className="flight-route-text">

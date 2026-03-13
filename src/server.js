@@ -8,6 +8,7 @@ const SIDispatchService = require('./siDispatchService');
 const DispatchOrchestrator = require('./services/DispatchOrchestrator');
 const DispatchValidator = require('./services/DispatchValidator');
 const simConnectService = require('./simConnectService');
+const taxiGraphService = require('./taxiGraphService');
 const credentialsManager = require('../src/credentialsManager');
 const telemetryUtils = require('./telemetryUtils');
 const fuelUtils = require('./fuelUtils');
@@ -1096,7 +1097,9 @@ class DispatchServer {
             arrRwy: cf.flight_plan_arriving_runway || null,
             approach: awx.approaches_in_use || null,
             gate: cf.assigned_gate || null,
-            taxiPath: Array.isArray(cf.taxi_path) && cf.taxi_path.length > 0 ? 'TAXI RCVD' : (cf.taxi_path ? String(cf.taxi_path) : null)
+            taxiRoute: Array.isArray(cf.taxi_path) && cf.taxi_path.length > 0
+              ? taxiGraphService.getRoute(cf.taxi_path, cf.flight_origin)
+              : null
           }
         });
       } catch (e) {
