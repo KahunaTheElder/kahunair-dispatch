@@ -1172,13 +1172,12 @@ class DispatchServer {
           // Skipped crew or missing profiles → no entry (handled gracefully in builder)
         }
 
-        // Load VA profile
+        // Load VA profile from user AppData via VAProfileManager
         let vaProfile = null;
         try {
-          const vaProfilePath = path.join(__dirname, 'data', 'va-profiles', 'kahuna-air.json');
-          if (fs.existsSync(vaProfilePath)) {
-            vaProfile = JSON.parse(fs.readFileSync(vaProfilePath, 'utf8'));
-          }
+          const VAProfileManager = require('./vaProfileManager');
+          const vaResult = new VAProfileManager().load();
+          if (vaResult.success && vaResult.profile) vaProfile = vaResult.profile;
         } catch (e) {
           console.warn('[crew-to-si] Could not load VA profile:', e.message);
         }
@@ -1295,8 +1294,9 @@ class DispatchServer {
 
         let vaProfile = null;
         try {
-          const vaProfilePath = path.join(__dirname, 'data', 'va-profiles', 'kahuna-air.json');
-          if (fs.existsSync(vaProfilePath)) vaProfile = JSON.parse(fs.readFileSync(vaProfilePath, 'utf8'));
+          const VAProfileManager = require('./vaProfileManager');
+          const vaResult = new VAProfileManager().load();
+          if (vaResult.success && vaResult.profile) vaProfile = vaResult.profile;
         } catch (e) {}
 
         const { crew_data, copilot_data, dispatcher_data } = siPayloadBuilder.assembleVAPayload(

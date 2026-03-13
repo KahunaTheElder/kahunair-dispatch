@@ -26,16 +26,14 @@ class VAProfileManager {
 
   createBlankProfile() {
     return {
-      companyId: '',
-      vaId: '',
       name: '',
       callsign: '',
       about: '',
-      personality: 'standard', // formal | casual | humorous | standard
-      dispatcherStyle: 'professional',
-      logo: '', // Base64 encoded or URL
+      culture: '',           // e.g. "Island hospitality meets professional aviation standards"
+      communicationStyle: 'formal, professional, to-the-point',
+      serviceLevel: 'premium',   // standard | premium | ultra-premium
+      dispatcherStyle: 'professional and supportive',
       customNotes: '',
-      siKey: '', // SayIntentions.AI VA API key
       lastUpdated: new Date().toISOString(),
       createdAt: new Date().toISOString()
     };
@@ -80,17 +78,11 @@ class VAProfileManager {
       const existingResult = this.load();
       let profile = existingResult.profile || this.createBlankProfile();
 
-      // Update with provided data
-      if (profileData.companyId) profile.companyId = profileData.companyId;
-      if (profileData.vaId) profile.vaId = profileData.vaId;
-      if (profileData.name) profile.name = profileData.name;
-      if (profileData.callsign) profile.callsign = profileData.callsign;
-      if (profileData.about) profile.about = profileData.about;
-      if (profileData.personality) profile.personality = profileData.personality;
-      if (profileData.dispatcherStyle) profile.dispatcherStyle = profileData.dispatcherStyle;
-      if (profileData.logo) profile.logo = profileData.logo;
-      if (profileData.customNotes !== undefined) profile.customNotes = profileData.customNotes;
-      if (profileData.siKey) profile.siKey = profileData.siKey;
+      // Update with provided data (allow empty strings to clear fields)
+      const fields = ['name', 'callsign', 'about', 'culture', 'communicationStyle', 'serviceLevel', 'dispatcherStyle', 'customNotes'];
+      for (const field of fields) {
+        if (profileData[field] !== undefined) profile[field] = profileData[field];
+      }
 
       // Always update timestamp
       profile.lastUpdated = new Date().toISOString();

@@ -109,6 +109,62 @@ export default function AppMinimal() {
   })
   const [settingsSaveStatus, setSettingsSaveStatus] = useState('idle') // idle | saving | saved | error
 
+  // VA Profile modal state
+  const [showVAProfile, setShowVAProfile] = useState(false)
+  const [vaForm, setVAForm] = useState({
+    name: '', callsign: '', about: '', culture: '',
+    communicationStyle: 'formal, professional, to-the-point',
+    serviceLevel: 'premium', dispatcherStyle: 'professional and supportive', customNotes: ''
+  })
+  const [vaSaveStatus, setVASaveStatus] = useState('idle') // idle | saving | saved | error
+
+  const openVAProfile = async () => {
+    setVASaveStatus('idle')
+    setShowVAProfile(true)
+    try {
+      const res = await fetch(`${apiUrl}/api/va/profile`, { signal: AbortSignal.timeout(5000) })
+      if (res.ok) {
+        const data = await res.json()
+        if (data.success && data.profile) {
+          const p = data.profile
+          setVAForm({
+            name: p.name || '',
+            callsign: p.callsign || '',
+            about: p.about || '',
+            culture: p.culture || '',
+            communicationStyle: p.communicationStyle || 'formal, professional, to-the-point',
+            serviceLevel: p.serviceLevel || 'premium',
+            dispatcherStyle: p.dispatcherStyle || 'professional and supportive',
+            customNotes: p.customNotes || ''
+          })
+        }
+      }
+    } catch (e) {
+      // Start with blank form if no profile saved yet
+    }
+  }
+
+  const saveVAProfile = async () => {
+    setVASaveStatus('saving')
+    try {
+      const res = await fetch(`${apiUrl}/api/va/profile`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(vaForm),
+        signal: AbortSignal.timeout(10000)
+      })
+      const data = await res.json()
+      if (res.ok && data.success) {
+        setVASaveStatus('saved')
+        setTimeout(() => setShowVAProfile(false), 800)
+      } else {
+        setVASaveStatus(`error:${data.error || 'Save failed'}`)
+      }
+    } catch (e) {
+      setVASaveStatus(`error:${e.message}`)
+    }
+  }
+
   const openSettings = async () => {
     setSettingsSaveStatus('idle')
     setShowSettings(true)
@@ -1227,6 +1283,21 @@ export default function AppMinimal() {
           <StatusDot status={simConnectStatus} label="SC" />
           <StatusDot status={simBriefStatus} label="SB" />
           <button
+            onClick={openVAProfile}
+            title="VA Profile — airline identity for SayIntentions.AI"
+            style={{
+              background: 'none',
+              border: '1px solid #374151',
+              borderRadius: '4px',
+              color: '#9ca3af',
+              cursor: 'pointer',
+              fontSize: '13px',
+              padding: '2px 6px',
+              marginLeft: '4px',
+              lineHeight: 1
+            }}
+          >🏢</button>
+          <button
             onClick={openSettings}
             title="Settings"
             style={{
@@ -1363,6 +1434,174 @@ export default function AppMinimal() {
           ✈ NEW FLIGHT
         </button>
       </div>
+
+      {/* VA Profile modal */}
+      {showVAProfile && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(0,0,0,0.85)',
+          zIndex: 10000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '16px'
+        }}>
+          <div style={{
+            backgroundColor: '#0f1117',
+            border: '1px solid #374151',
+            borderRadius: '8px',
+            padding: '24px',
+            width: '100%',
+            maxWidth: '520px',
+            maxHeight: '90vh',
+            overflowY: 'auto'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <h3 style={{ margin: 0, color: '#f9fafb', fontSize: '15px', fontWeight: 600 }}>🏢 VA Profile</h3>
+              <button
+                onClick={() => setShowVAProfile(false)}
+                style={{ background: 'none', border: 'none', color: '#9ca3af', fontSize: '18px', cursor: 'pointer', padding: '0 4px' }}
+              >✕</button>
+            </div>
+            <p style={{ margin: '0 0 20px', color: '#6b7280', fontSize: '12px', lineHeight: 1.5 }}>
+              Your virtual airline identity — used by SayIntentions.AI to shape the personality of ATC, crew interactions, and dispatcher briefings.
+            </p>
+
+            {/* Identity */}
+            <div style={{ marginBottom: '6px', color: '#6b7280', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Identity</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px', gap: '10px', marginBottom: '12px' }}>
+              <div>
+                <label style={{ display: 'block', color: '#9ca3af', fontSize: '12px', marginBottom: '4px' }}>Airline Name</label>
+                <input
+                  type="text"
+                  value={vaForm.name}
+                  onChange={e => setVAForm(f => ({ ...f, name: e.target.value }))}
+                  placeholder="e.g. Kahuna Air Industries"
+                  style={{ width: '100%', backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '4px', color: '#f9fafb', fontSize: '13px', padding: '7px 10px', boxSizing: 'border-box', outline: 'none' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', color: '#9ca3af', fontSize: '12px', marginBottom: '4px' }}>ICAO Callsign</label>
+                <input
+                  type="text"
+                  value={vaForm.callsign}
+                  onChange={e => setVAForm(f => ({ ...f, callsign: e.target.value.toUpperCase() }))}
+                  placeholder="e.g. KHNA"
+                  maxLength={8}
+                  style={{ width: '100%', backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '4px', color: '#f9fafb', fontSize: '13px', padding: '7px 10px', boxSizing: 'border-box', outline: 'none', fontFamily: 'monospace' }}
+                />
+              </div>
+            </div>
+
+            {/* About */}
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', color: '#9ca3af', fontSize: '12px', marginBottom: '4px' }}>About</label>
+              <textarea
+                value={vaForm.about}
+                onChange={e => setVAForm(f => ({ ...f, about: e.target.value }))}
+                placeholder="Brief description of your virtual airline — history, routes, focus area..."
+                rows={3}
+                style={{ width: '100%', backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '4px', color: '#f9fafb', fontSize: '13px', padding: '7px 10px', boxSizing: 'border-box', outline: 'none', resize: 'vertical', fontFamily: 'inherit' }}
+              />
+            </div>
+
+            {/* Culture */}
+            <div style={{ marginBottom: '6px', marginTop: '4px', color: '#6b7280', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Personality & Operations</div>
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', color: '#9ca3af', fontSize: '12px', marginBottom: '4px' }}>Culture & Traditions</label>
+              <textarea
+                value={vaForm.culture}
+                onChange={e => setVAForm(f => ({ ...f, culture: e.target.value }))}
+                placeholder="e.g. Island hospitality meets professional aviation standards"
+                rows={2}
+                style={{ width: '100%', backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '4px', color: '#f9fafb', fontSize: '13px', padding: '7px 10px', boxSizing: 'border-box', outline: 'none', resize: 'vertical', fontFamily: 'inherit' }}
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
+              <div>
+                <label style={{ display: 'block', color: '#9ca3af', fontSize: '12px', marginBottom: '4px' }}>Communication Style</label>
+                <select
+                  value={vaForm.communicationStyle}
+                  onChange={e => setVAForm(f => ({ ...f, communicationStyle: e.target.value }))}
+                  style={{ width: '100%', backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '4px', color: '#f9fafb', fontSize: '13px', padding: '7px 10px', boxSizing: 'border-box', outline: 'none' }}
+                >
+                  <option value="formal, professional, to-the-point">Formal & Professional</option>
+                  <option value="professional, friendly">Professional & Friendly</option>
+                  <option value="casual, conversational">Casual & Conversational</option>
+                  <option value="relaxed, humorous">Relaxed & Humorous</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ display: 'block', color: '#9ca3af', fontSize: '12px', marginBottom: '4px' }}>Service Level</label>
+                <select
+                  value={vaForm.serviceLevel}
+                  onChange={e => setVAForm(f => ({ ...f, serviceLevel: e.target.value }))}
+                  style={{ width: '100%', backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '4px', color: '#f9fafb', fontSize: '13px', padding: '7px 10px', boxSizing: 'border-box', outline: 'none' }}
+                >
+                  <option value="standard">Standard</option>
+                  <option value="premium">Premium</option>
+                  <option value="ultra-premium">Ultra-Premium</option>
+                </select>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', color: '#9ca3af', fontSize: '12px', marginBottom: '4px' }}>Dispatcher Style</label>
+              <input
+                type="text"
+                value={vaForm.dispatcherStyle}
+                onChange={e => setVAForm(f => ({ ...f, dispatcherStyle: e.target.value }))}
+                placeholder="e.g. professional and supportive"
+                style={{ width: '100%', backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '4px', color: '#f9fafb', fontSize: '13px', padding: '7px 10px', boxSizing: 'border-box', outline: 'none' }}
+              />
+            </div>
+
+            {/* Custom Notes */}
+            <div style={{ marginBottom: '6px', marginTop: '4px', color: '#6b7280', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Additional Context</div>
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', color: '#9ca3af', fontSize: '12px', marginBottom: '4px' }}>Custom Notes for SI</label>
+              <textarea
+                value={vaForm.customNotes}
+                onChange={e => setVAForm(f => ({ ...f, customNotes: e.target.value }))}
+                placeholder="Any special instructions or context for SayIntentions.AI — operational quirks, special crew behaviors, etc."
+                rows={3}
+                style={{ width: '100%', backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '4px', color: '#f9fafb', fontSize: '13px', padding: '7px 10px', boxSizing: 'border-box', outline: 'none', resize: 'vertical', fontFamily: 'inherit' }}
+              />
+            </div>
+
+            {vaSaveStatus.startsWith('error') && (
+              <div style={{ marginBottom: '12px', color: '#f87171', fontSize: '12px' }}>
+                ⚠ {vaSaveStatus.replace(/^error:/, '')}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setShowVAProfile(false)}
+                style={{ padding: '8px 16px', backgroundColor: 'transparent', border: '1px solid #374151', borderRadius: '5px', color: '#9ca3af', fontSize: '13px', cursor: 'pointer' }}
+              >Cancel</button>
+              <button
+                onClick={saveVAProfile}
+                disabled={vaSaveStatus === 'saving'}
+                style={{
+                  padding: '8px 20px',
+                  backgroundColor: vaSaveStatus === 'saved' ? '#065f46' : '#1d4ed8',
+                  border: '1px solid ' + (vaSaveStatus === 'saved' ? '#047857' : '#2563eb'),
+                  borderRadius: '5px',
+                  color: '#f9fafb',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  cursor: vaSaveStatus === 'saving' ? 'not-allowed' : 'pointer'
+                }}
+              >
+                {vaSaveStatus === 'saving' ? 'Saving...' : vaSaveStatus === 'saved' ? '✓ Saved' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Settings modal */}
       {showSettings && (

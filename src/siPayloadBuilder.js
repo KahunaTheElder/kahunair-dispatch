@@ -21,6 +21,11 @@
 function buildCrewData(captainProfile, faProfiles, flight, vaProfile, faMembers = []) {
   const va = vaProfile || {};
   const vaName = va.name || 'Kahuna Air Industries';
+  const culture = va.culture || va.profile?.traditions || 'Professional aviation with island hospitality standards';
+  const serviceLevel = va.serviceLevel || va.operationalPolicy?.passengerServiceLevel || 'premium';
+  const commStyle = va.communicationStyle || va.operationalPolicy?.communicationStyle || 'formal, to-the-point';
+  const professionalism = va.operationalPolicy?.crewProfessionalism || 'professional';
+  const safety = va.operationalPolicy?.safetyPriority || 'highest';
   const aircraft = flight?.aircraft?.displayName || flight?.aircraft?.type || 'Unknown Aircraft';
   const dep = flight?.route?.departure?.ICAO || '----';
   const arr = flight?.route?.arrival?.ICAO || '----';
@@ -28,8 +33,8 @@ function buildCrewData(captainProfile, faProfiles, flight, vaProfile, faMembers 
 
   const lines = [];
   lines.push(`Virtual Airline: ${vaName}`);
-  lines.push(`Culture: ${va.profile?.traditions || 'Professional aviation with island hospitality standards'}`);
-  lines.push(`Service Standard: ${va.operationalPolicy?.passengerServiceLevel || 'premium'}`);
+  lines.push(`Culture: ${culture}`);
+  lines.push(`Service Standard: ${serviceLevel}`);
   lines.push(`Flight: ${dep} → ${arr} | Aircraft: ${aircraft}${reg ? ' (' + reg + ')' : ''}`);
   lines.push('');
 
@@ -68,8 +73,8 @@ function buildCrewData(captainProfile, faProfiles, flight, vaProfile, faMembers 
     lines.push('');
   }
 
-  lines.push(`Operational Policy: ${va.operationalPolicy?.crewProfessionalism || 'professional'} — ${va.operationalPolicy?.communicationStyle || 'formal, to-the-point'}`);
-  lines.push(`Safety Priority: ${va.operationalPolicy?.safetyPriority || 'highest'}`);
+  lines.push(`Operational Policy: ${professionalism} — ${commStyle}`);
+  lines.push(`Safety Priority: ${safety}`);
 
   return lines.join('\n');
 }
@@ -153,7 +158,7 @@ function buildDispatcherData(flight, vaProfile) {
   const cargoUoM = flight?.payload?.cargoWeightUoM || 'lbs';
   const crewTotal = flight?.crew?.total || 0;
 
-  const depStyle = va.dispatcherPersonality?.style || 'professional and supportive';
+  const depStyle = va.dispatcherStyle || va.dispatcherPersonality?.style || 'professional and supportive';
   const briefingStyle = va.dispatcherPersonality?.flightBriefing || 'Comprehensive with focus on safety and efficiency';
 
   const lines = [];
