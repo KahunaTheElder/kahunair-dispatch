@@ -86,16 +86,24 @@ export default function AppMinimal() {
   const [crewCollapsed, setCrewCollapsed] = useState(() => {
     try { return localStorage.getItem('crewCollapsed') === 'true' } catch { return false }
   })
+  const appRootRef = useRef(null)
 
   // Resize window when crew section collapses/expands
   useEffect(() => {
     try { localStorage.setItem('crewCollapsed', crewCollapsed) } catch {}
     if (!window.electronAPI?.setWindowHeight) return
     const timer = setTimeout(() => {
+      const el = appRootRef.current
+      if (!el) return
+      // Sum heights of all direct children — works even when container is min-height: 100vh
+      let contentH = 0
+      for (const child of el.children) {
+        contentH += child.getBoundingClientRect().height
+      }
+      contentH += 40 // padding top + bottom (20px each)
       const chromeOffset = window.outerHeight - window.innerHeight
-      const contentHeight = document.documentElement.scrollHeight
-      window.electronAPI.setWindowHeight(chromeOffset + contentHeight)
-    }, 60)
+      window.electronAPI.setWindowHeight(chromeOffset + Math.ceil(contentH))
+    }, 80)
     return () => clearTimeout(timer)
   }, [crewCollapsed])
   const [cargoCharter, setCargoCharter] = useState({ cargos: [], charters: [] }) // NEW: Cargo/Charter data
@@ -1371,7 +1379,7 @@ export default function AppMinimal() {
   }
 
   return (
-    <div className="app-minimal">
+    <div className="app-minimal" ref={appRootRef}>
       <SIDebugPanel show={showSiDebug} info={siDebugInfo} sendStatus={siSendStatus} onClose={closeSiDebug} />
       <div className="top-bar">
         <TelemetryDisplay />
