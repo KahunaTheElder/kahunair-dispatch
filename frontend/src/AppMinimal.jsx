@@ -83,7 +83,21 @@ export default function AppMinimal() {
   })
   const [crew, setCrew] = useState(null)
   const [crewProfiles, setCrewProfiles] = useState({}) // crewId -> profile mapping
-  const [crewCollapsed, setCrewCollapsed] = useState(false)
+  const [crewCollapsed, setCrewCollapsed] = useState(() => {
+    try { return localStorage.getItem('crewCollapsed') === 'true' } catch { return false }
+  })
+
+  // Resize window when crew section collapses/expands
+  useEffect(() => {
+    try { localStorage.setItem('crewCollapsed', crewCollapsed) } catch {}
+    if (!window.electronAPI?.setWindowHeight) return
+    const timer = setTimeout(() => {
+      const chromeOffset = window.outerHeight - window.innerHeight
+      const contentHeight = document.documentElement.scrollHeight
+      window.electronAPI.setWindowHeight(chromeOffset + contentHeight)
+    }, 60)
+    return () => clearTimeout(timer)
+  }, [crewCollapsed])
   const [cargoCharter, setCargoCharter] = useState({ cargos: [], charters: [] }) // NEW: Cargo/Charter data
   const [cargoStatus, setCargoStatus] = useState('IDLE') // IDLE | AWAITING_OA_START | LOADING | READY
   const [noFlight, setNoFlight] = useState(true) // true until OA confirms an active flight

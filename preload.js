@@ -13,6 +13,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Platform info for renderer
   platform: process.platform,
+
+  // Resize the window height (e.g. for collapsible sections)
+  setWindowHeight: (height) => ipcRenderer.send('set-window-height', height),
 });
 
 // Handle IPC responses from main process

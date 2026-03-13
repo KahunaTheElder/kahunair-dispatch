@@ -525,7 +525,7 @@ const createWindow = (vitePort = 5173) => {
     x: winState.x,
     y: winState.y,
     minWidth: 1000,
-    minHeight: 720,
+    minHeight: 500,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -1038,6 +1038,14 @@ const _setupIpcHandlers = (window) => {
     console.log('[IPC] Received open-dev-tools request from frontend');
     if (window) {
       window.webContents.openDevTools();
+    }
+  });
+
+  // Handle window height adjustment (e.g. crew section collapse/expand)
+  ipcMain.on('set-window-height', (event, height) => {
+    if (window && !window.isMaximized() && !window.isMinimized()) {
+      const { width } = window.getBounds();
+      window.setSize(width, Math.max(Math.round(height), 500), true);
     }
   });
 };
