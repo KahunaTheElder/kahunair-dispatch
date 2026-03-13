@@ -1091,7 +1091,9 @@ class DispatchServer {
             sid: cf.flight_plan_sid || null,
             star: cf.flight_plan_star || null,
             arrRwy: cf.flight_plan_arriving_runway || null,
-            approach: awx.approaches_in_use || null
+            approach: awx.approaches_in_use || null,
+            gate: cf.assigned_gate || null,
+            taxiPath: cf.taxi_path || null
           }
         });
       } catch (e) {

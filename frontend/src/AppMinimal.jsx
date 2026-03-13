@@ -1121,6 +1121,9 @@ export default function AppMinimal() {
     const chgStar = ofpBase && siProcedures?.star && siProcedures.star !== ofpBase.star
     const chgArrRwy = ofpBase && siProcedures?.arrRwy && siProcedures.arrRwy !== ofpBase.arrRwy
 
+    const siGate = siProcedures?.gate || null
+    const siTaxiPath = siProcedures?.taxiPath || null
+
     // Format wind as direction/speed (e.g., "180/15")
     const windDir = flightData.avgWindDir && flightData.avgWindDir !== '---' ? String(flightData.avgWindDir).padStart(3, '0') : '---'
     const windSpd = flightData.avgWindSpd && flightData.avgWindSpd !== '---' ? String(flightData.avgWindSpd).padStart(2, '0') : '--'
@@ -1149,6 +1152,13 @@ export default function AppMinimal() {
           <span style={chgArrRwy ? { color: '#fbbf24' } : undefined} title={chgArrRwy ? `was: ${ofpBase.arrRwy}` : undefined}>RWY {arrRwy}{chgArrRwy ? ' ↑' : ''}</span>
           {approach && <span style={{ color: '#60a5fa', fontWeight: 600 }}>{' | '}APPR {approach}</span>}
         </div>
+        {(siGate || siTaxiPath) && (
+          <div className="flight-procedures-text" style={{ color: '#34d399' }}>
+            {siGate && <span>GATE {siGate}</span>}
+            {siGate && siTaxiPath && <span>{' | '}</span>}
+            {siTaxiPath && <span>TAXI {siTaxiPath}</span>}
+          </div>
+        )}
         <div className="flight-route-text">
           {route}
         </div>
