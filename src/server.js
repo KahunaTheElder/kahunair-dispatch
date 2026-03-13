@@ -1081,12 +1081,16 @@ class DispatchServer {
           return res.json({ success: false, error: 'flight.json not found' });
         }
         const flightJson = JSON.parse(fs.readFileSync(flightJsonPath, 'utf8'));
-        const cf = flightJson?.current_flight || {};
-        const awx = flightJson?.arrival_wx || {};
+        const fd = flightJson?.flight_details || {};
+        // current_flight and arrival_wx are "" (empty string) when SI is on the ground
+        // and become objects only when a full SI flight plan is loaded
+        const cf = (fd.current_flight && typeof fd.current_flight === 'object') ? fd.current_flight : {};
+        const awx = (fd.arrival_wx && typeof fd.arrival_wx === 'object') ? fd.arrival_wx : {};
         return res.json({
           success: true,
           procedures: {
-            depRwy: cf.flight_plan_departing_runway || null,
+            // Prefer nested flight-plan fields; fall back to flat fd.runway for on-ground state
+            depRwy: cf.flight_plan_departing_runway || fd.runway || null,
             sid: cf.flight_plan_sid || null,
             star: cf.flight_plan_star || null,
             arrRwy: cf.flight_plan_arriving_runway || null,

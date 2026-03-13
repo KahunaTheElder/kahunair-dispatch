@@ -25,25 +25,54 @@ Backend endpoint: `GET /api/si/status` — returns `{ running, callsign, flight_
 
 ## flight.json Structure (Key Fields)
 
+⚠️ **Real structure verified March 2026** — all data is nested under `flight_details`, NOT at root level.
+
 ```js
+// Root level: only "flight_details" key exists
 {
-  flight_id: "uuid",              // Rotates on each SI session start
-  callsign: "KHN1001",
-  on_ground: true,
-  current_airport: "EGCC",
-  current_flight: {
-    flight_plan_departing_runway: "05R",
-    flight_plan_sid:              "ABKU2A",
-    flight_plan_star:             "LOGA4A",
-    flight_plan_arriving_runway:  "23L",
-    assigned_gate:                "A3",     // null until SI assigns parking
-    taxi_path:                    "A B C",  // null until SI assigns taxi
-    taxi_object:                  "Gate A3"
-  },
-  arrival_wx: {
-    approaches_in_use: "ILS23L"  // null until SI assigns approach
+  flight_details: {
+    // Always present (flat fields):
+    api_key:         "siEb5NFkfC4b",  // Rotates per session — read fresh on each dispatch
+    flight_id:       845143415,
+    callsign:        "Kahuna-one-zero-zero-one",
+    callsign_icao:   "khn1001",
+    on_ground:       1,               // 1=on ground, 0=airborne
+    current_airport: "EGCC",
+    runway:          "23L",           // Active runway (departure runway when on ground)
+    heading:         320,
+    altitude:        228,
+    coordinates:     "53.36,-2.26",
+
+    // These are "" (empty string) on ground / before SI loads a flight plan,
+    // and become objects once SI has an active flight plan loaded:
+    current_flight:  "" | {           // Object when SI flight plan loaded:
+      flight_plan_departing_runway:  "05R",
+      flight_plan_sid:               "ABKU2A",
+      flight_plan_star:              "LOGA4A",
+      flight_plan_arriving_runway:   "23L",
+      assigned_gate:                 "A3",     // null until SI assigns parking
+      taxi_path:                     "A B C",  // null until SI assigns taxi
+      taxi_object:                   "Gate A3"
+    },
+    arrival_wx:      "" | {           // Object when arrival weather is available:
+      approaches_in_use: "ILS23L"
+    }
   }
 }
+```
+
+**Correct pattern for reading flight.json:**
+```js
+const fd = flightJson?.flight_details || {};
+// Guard against "" (empty string) — only use if it's actually an object
+const cf = (fd.current_flight && typeof fd.current_flight === 'object') ? fd.current_flight : {};
+const awx = (fd.arrival_wx   && typeof fd.arrival_wx   === 'object') ? fd.arrival_wx   : {};
+
+// api_key is always at fd.api_key (NOT flightJson.api_key)
+const apiKey = fd.api_key;
+
+// Runway: prefer nested cf field (full flight plan), fall back to flat fd.runway (on ground)
+const depRwy = cf.flight_plan_departing_runway || fd.runway || null;
 ```
 
 ---
