@@ -1780,6 +1780,13 @@ export default function AppMinimal() {
               </div>
             )}
 
+            <div style={{ borderTop: '1px solid #1f2937', margin: '16px 0 12px', paddingTop: '12px' }}>
+              <button
+                onClick={() => { setShowSettings(false); openVAProfile() }}
+                style={{ background: 'none', border: 'none', color: '#6b7280', fontSize: '12px', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
+              >🏢 Edit VA Profile</button>
+            </div>
+
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '8px' }}>
               <button
                 onClick={() => setShowSettings(false)}
