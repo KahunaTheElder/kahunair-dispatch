@@ -141,11 +141,11 @@ class SimConnectService {
                 SimConnectDataType.FLOAT64
             );
 
-            // ETE to destination (GPS DESTINATION TIME = seconds remaining to GPS destination)
+            // Distance remaining to GPS destination (meters) — used to compute ETE
             this.handle.addToDataDefinition(
                 DEF_ID_TELEMETRY,
-                'GPS DESTINATION TIME',
-                'Seconds',
+                'GPS GROUND DISTANCE',
+                'Meters',
                 SimConnectDataType.FLOAT64
             );
 
@@ -387,6 +387,13 @@ class SimConnectService {
                 `PAX: ${paxQuantity.toFixed(0)} pax`
             );
 
+            // GPS GROUND DISTANCE is in meters; compute ETE from distance / ground speed
+            const distanceMeters = eteSeconds; // variable reused for distance
+            const distanceNm = distanceMeters / 1852;
+            const computedEteSeconds = (groundSpeedKnots > 5)
+                ? Math.round((distanceNm / groundSpeedKnots) * 3600)
+                : 0;
+
             // Build telemetry object with all operational data
             this.telemetry = {
                 position: {
@@ -424,8 +431,8 @@ class SimConnectService {
                 navigation: {
                     nextWaypoint: null,
                     nextWaypointDistance: null,
-                    eteSeconds: Math.round(eteSeconds),
-                    eteMinutes: Math.round(eteSeconds / 60)
+                    eteSeconds: computedEteSeconds,
+                    eteMinutes: Math.round(computedEteSeconds / 60)
                 },
                 timestamp: Date.now()
             };
@@ -445,7 +452,7 @@ class SimConnectService {
                     `  Cargo: ${Math.round(cargoWeightLbs)} lbs\n` +
                     `  Passengers: ${Math.round(paxQuantity)} pax\n` +
                     `  Total Weight: ${Math.round(totalWeightLbs)} lbs (Empty: ${Math.round(emptyWeightLbs)} lbs)\n` +
-                    `  ETE to Destination: ${Math.round(eteSeconds / 60)} minutes (${Math.round(eteSeconds)} seconds)`
+                    `  ETE to Destination: ${Math.round(computedEteSeconds / 60)} min (${distanceNm.toFixed(1)} nm @ ${Math.round(groundSpeedKnots)} kts)`
                 );
                 this._firstPollLogged = true;
             }
