@@ -4,6 +4,49 @@ All notable changes to KahunaAir Dispatch are documented here.
 
 ---
 
+## [0.2.1] - 2026-03-12
+
+### Added — VA Profile Editor (7-section form)
+
+- **VA Profile modal** (`frontend/src/components/VAProfileEditor.jsx`) replaces the old single-textarea form with seven structured sections matching SI `importVAData` best practices:
+  1. Airline Basics (name, tagline)
+  2. Safety & Compliance
+  3. Crew Greeting / Announcement Style
+  4. Cabin Tone & Service Philosophy
+  5. Signature Amenities
+  6. Traditions & Quirks
+  7. Company Policies / Dispatcher Notes
+- `callsign` field removed — callsign is obtained from the SimBrief OFP, not from the VA profile.
+- `vaProfileManager.js` schema updated; `siPayloadBuilder.js` now wires all new fields into the SI `crew_data` and `dispatcher_data` sections.
+
+### Added — VA Profile discoverability
+
+- Settings modal footer now shows **🏢 Edit VA Profile** underline link.
+- Clicking the link closes Settings and opens the VA Profile editor, so the feature is discoverable without knowing about the top-bar 🏢 icon.
+
+### Added — Live SI Procedure Change Detection
+
+- New `GET /api/si/procedures` endpoint reads `current_flight` from `flight.json` (SayIntentions) every 15 seconds when SI is running.
+- Returns: `depRwy`, `sid`, `star`, `arrRwy`, `approach`, `gate`, `taxiPath`.
+- SimBrief OFP values are captured once as a baseline when the OFP loads (`ofpProceduresRef`).
+- In the flight data bar:
+  - Fields that differ from the OFP baseline render in **amber** with a `↑` indicator and a hover tooltip showing the original value.
+  - Approach (no OFP equivalent) renders in **blue** when assigned.
+  - Gate and taxi path render in **green** below the procedures line when populated.
+
+### Added — Window Position Persistence
+
+- `main.js` now saves and restores window bounds (`x`, `y`, `width`, `height`) across restarts.
+- State persisted to `%APPDATA%\KahunaAir Dispatch\window-state.json` via `app.getPath('userData')`.
+- Save is skipped when the window is maximized or minimized (restores correctly on next launch).
+
+### Added — Taxi & Gate Display
+
+- When SI assigns parking and taxi instructions, a green row appears in the flight data bar between the procedures line and the route:  `GATE A3 | TAXI A B C`
+- Source fields: `current_flight.assigned_gate` and `current_flight.taxi_path` in `flight.json`.
+
+---
+
 ## [0.2.0] - 2026-03-11
 
 ### Fixed — Cargo & Charter Matching (critical)
