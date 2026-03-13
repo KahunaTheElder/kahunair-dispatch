@@ -699,13 +699,11 @@ export default function AppMinimal() {
 
           if (res.ok) {
             const data = await res.json()
-            if (data.profile && data.profile.background) {
-              // Only treat as complete if it has the new-format background field
-              // Old stub profiles (personality: string, no background) are re-queued
+            if (data.profile && data.profile.name) {
+              // Accept any saved profile — old-format (no background) or new-format both valid
               profiles[profileId] = data.profile
             } else if (data.profile) {
-              // Old-format stub — queue for new editor
-              console.log('[AppMinimal] Old-format profile (no background) for', member.name, '→ re-queued')
+              // Truly empty stub with no name — queue for editor
               queue.push({ crewId: profileId, member })
             }
           } else if (res.status === 404) {
@@ -754,6 +752,9 @@ export default function AppMinimal() {
 
   // Fetch OFP data from SimBrief via backend - provides route, alternate, procedures, weights
   useEffect(() => {
+    let retryTimer = null
+    let loaded = false
+
     const fetchOFPData = async () => {
       try {
         const res = await fetch(`${apiUrl}/api/flight/ofp`, {
@@ -770,9 +771,10 @@ export default function AppMinimal() {
           const ofp = json.ofp
           console.log('[AppMinimal] OFP data received - route:', ofp.route)
 
-          // Extract flight plan data
-          const towThousands = ofp.weights?.takeoffWeight !== undefined ? (ofp.weights.takeoffWeight / 1000).toFixed(1) : '----'
-          const blockFuelThousands = ofp.fuel?.plannedLbs !== undefined ? (ofp.fuel.plannedLbs / 1000).toFixed(1) : '----'
+          // Treat zero weights as blank (parsing failed) — only show real values
+          const towThousands = ofp.weights?.takeoffWeight > 0 ? (ofp.weights.takeoffWeight / 1000).toFixed(1) : '----'
+          const blockFuelThousands = ofp.fuel?.plannedLbs > 0 ? (ofp.fuel.plannedLbs / 1000).toFixed(1) : '----'
+          loaded = towThousands !== '----'
 
           setFlightData(prev => ({
             ...prev || {},
@@ -815,11 +817,16 @@ export default function AppMinimal() {
         // Silently fail - OFP is optional, app continues without it
         console.debug('[AppMinimal] OFP fetch failed (non-blocking):', error.message)
       }
+
+      // Retry every 30s until weights are populated
+      if (!loaded) {
+        retryTimer = setTimeout(fetchOFPData, 30000)
+      }
     }
 
     // Fetch OFP once after short delay (let other data load first)
     const timer = setTimeout(fetchOFPData, 500)
-    return () => clearTimeout(timer)
+    return () => { clearTimeout(timer); clearTimeout(retryTimer) }
   }, [apiUrl])
 
   // Poll SI for procedure updates and cargo info
