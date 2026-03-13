@@ -144,7 +144,7 @@ class SimConnectService {
             // Distance remaining to GPS destination (meters) — used to compute ETE
             this.handle.addToDataDefinition(
                 DEF_ID_TELEMETRY,
-                'GPS GROUND DISTANCE',
+                'GPS TARGET DISTANCE',
                 'Meters',
                 SimConnectDataType.FLOAT64
             );
@@ -387,8 +387,8 @@ class SimConnectService {
                 `PAX: ${paxQuantity.toFixed(0)} pax`
             );
 
-            // GPS GROUND DISTANCE is in meters; compute ETE from distance / ground speed
-            const distanceMeters = eteSeconds; // variable reused for distance
+            // GPS TARGET DISTANCE is in meters; compute ETE from distance / ground speed
+            const distanceMeters = eteSeconds; // variable reused for distance (12th SimVar slot)
             const distanceNm = distanceMeters / 1852;
             const computedEteSeconds = (groundSpeedKnots > 5)
                 ? Math.round((distanceNm / groundSpeedKnots) * 3600)
