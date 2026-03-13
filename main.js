@@ -496,11 +496,34 @@ const performFullCleanupWithDialog = async () => {
   });
 };
 
+const WINDOW_STATE_PATH = () => path.join(app.getPath('userData'), 'window-state.json');
+
+const loadWindowState = () => {
+  try {
+    const p = WINDOW_STATE_PATH();
+    if (fs.existsSync(p)) {
+      return JSON.parse(fs.readFileSync(p, 'utf8'));
+    }
+  } catch { /* ignore corrupt file */ }
+  return { width: 1280, height: 720, x: undefined, y: undefined };
+};
+
+const saveWindowState = (win) => {
+  try {
+    if (win.isMaximized() || win.isMinimized()) return;
+    const b = win.getBounds();
+    fs.writeFileSync(WINDOW_STATE_PATH(), JSON.stringify({ width: b.width, height: b.height, x: b.x, y: b.y }), 'utf8');
+  } catch { /* ignore */ }
+};
+
 const createWindow = (vitePort = 5173) => {
+  const winState = loadWindowState();
   // Create the browser window
   mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 720,
+    width: winState.width,
+    height: winState.height,
+    x: winState.x,
+    y: winState.y,
     minWidth: 1000,
     minHeight: 720,
     webPreferences: {
@@ -548,8 +571,13 @@ const createWindow = (vitePort = 5173) => {
   // Uncomment line below if you need devTools during development:
   // mainWindow.webContents.openDevTools();
 
-  // Handle window close request - cleanup backend process
+  // Save window position/size on move and resize
+  mainWindow.on('resize', () => saveWindowState(mainWindow));
+  mainWindow.on('move', () => saveWindowState(mainWindow));
+
+  // Handle window close request - save state then cleanup backend process
   mainWindow.on('close', (event) => {
+    saveWindowState(mainWindow);
     if (backendProcess && !backendProcess.killed) {
       console.log('[Electron] Terminating backend process...');
       backendProcess.kill('SIGTERM');
