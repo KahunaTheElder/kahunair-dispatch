@@ -90,3 +90,73 @@ Update `package.json` → `"version"` field. The built exe name (`KahunaAir Disp
 - `forceCodeSigning: false` — no Windows code signing certificate required
 - The `tools/` directory is excluded from the build (not listed in `files`)
 - Never use `gh run view <truncated-id>` — always get the full numeric ID via `--json databaseId`
+
+---
+
+## Collapsible Section + Window Auto-Resize Pattern
+
+To make a section collapsible **and** have the Electron window shrink/grow to fit:
+
+### 1. Lower `minHeight` in `main.js`
+```javascript
+minHeight: 500  // reduced from 720 to allow collapsed state
+```
+
+### 2. Add IPC handler in `main.js`
+```javascript
+ipcMain.on('set-window-height', (event, height) => {
+  if (window && !window.isMaximized() && !window.isMinimized()) {
+    const { width } = window.getBounds();
+    window.setSize(width, Math.max(Math.round(height), 500), true); // true = animate
+  }
+});
+```
+
+### 3. Expose via `preload.js`
+```javascript
+setWindowHeight: (height) => ipcRenderer.send('set-window-height', height),
+```
+
+### 4. Measure and send from React
+```javascript
+const appRootRef = useRef(null)
+
+useEffect(() => {
+  if (!window.electronAPI?.setWindowHeight) return
+  const timer = setTimeout(() => {
+    const el = appRootRef.current
+    if (!el) return
+    // Sum direct children heights — DO NOT use scrollHeight or document.documentElement.scrollHeight
+    // Those return viewport height when content < viewport (useless for shrinking)
+    let contentH = 0
+    for (const child of el.children) {
+      contentH += child.getBoundingClientRect().height
+    }
+    contentH += 40 // container padding (20px top + 20px bottom)
+    const chromeOffset = window.outerHeight - window.innerHeight
+    window.electronAPI.setWindowHeight(chromeOffset + Math.ceil(contentH))
+  }, 80) // delay for React to finish layout
+  return () => clearTimeout(timer)
+}, [collapsedState])
+
+// In JSX:
+<div className="app-minimal" ref={appRootRef}>
+```
+
+### 5. Critical CSS fix — container must NOT have fixed height
+```css
+/* WRONG — scrollHeight always equals viewport, resize never works */
+.app-minimal { height: 100vh; }
+
+/* CORRECT — container can shrink below viewport */
+.app-minimal { min-height: 100vh; }
+```
+
+### Persist collapsed state
+```javascript
+const [collapsed, setCollapsed] = useState(() => {
+  try { return localStorage.getItem('sectionCollapsed') === 'true' } catch { return false }
+})
+// On toggle:
+try { localStorage.setItem('sectionCollapsed', collapsed) } catch {}
+```
