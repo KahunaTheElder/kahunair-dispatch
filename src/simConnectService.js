@@ -141,15 +141,21 @@ class SimConnectService {
                 SimConnectDataType.FLOAT64
             );
 
-            // Distance remaining to GPS destination (meters) — used to compute ETE
+            // Aircraft position for haversine ETE computation
             this.handle.addToDataDefinition(
                 DEF_ID_TELEMETRY,
-                'GPS TARGET DISTANCE',
-                'Meters',
+                'GPS POSITION LAT',
+                'Degrees',
+                SimConnectDataType.FLOAT64
+            );
+            this.handle.addToDataDefinition(
+                DEF_ID_TELEMETRY,
+                'GPS POSITION LON',
+                'Degrees',
                 SimConnectDataType.FLOAT64
             );
 
-            logger.debug('[SimConnect] Telemetry data definitions registered (12 variables: flight, weight, fuel, cargo, pax, groundspeed, vertical-speed, ete)');
+            logger.debug('[SimConnect] Telemetry data definitions registered (13 variables: flight, weight, fuel, cargo, pax, groundspeed, vertical-speed, lat, lon)');
         } catch (error) {
             logger.error('[SimConnect] Failed to define telemetry data:', error.message);
         }
@@ -291,13 +297,13 @@ class SimConnectService {
             // Read 12 variables from the offset position
             let offset = bufferOffset;
 
-            let headingRaw, altitudeFeet, airspeedKnots, totalWeightLbs, emptyWeightLbs, fuelWeightLbs, cargoWeightLbs, paxQuantity, paxWeightLbs, groundSpeedKnots, verticalSpeedFpm, eteSeconds;
+            let headingRaw, altitudeFeet, airspeedKnots, totalWeightLbs, emptyWeightLbs, fuelWeightLbs, cargoWeightLbs, paxQuantity, paxWeightLbs, groundSpeedKnots, verticalSpeedFpm, planeLat, planeLon;
 
             // Debug: Show expected buffer structure
-            logger.debug(`[SimConnect] 28-byte header, then 12 FLOAT64 variables (8 bytes each):`);
+            logger.debug(`[SimConnect] 28-byte header, then 13 FLOAT64 variables (8 bytes each):`);
             logger.debug(`[SimConnect]   [28-35] Heading, [36-43] Altitude, [44-51] Airspeed`);
             logger.debug(`[SimConnect]   [52-59] Total Wt, [60-67] Empty Wt, [68-75] Fuel`);
-            logger.debug(`[SimConnect]   [76-83] Cargo, [84-91] PaxQty, [92-99] PaxWt, [100-107] GroundSpeed, [108-115] VerticalSpeed, [116-123] GPS ETE`);
+            logger.debug(`[SimConnect]   [76-83] Cargo, [84-91] PaxQty, [92-99] PaxWt, [100-107] GroundSpeed, [108-115] VerticalSpeed, [116-123] Lat, [124-131] Lon`);
 
             if (buffer instanceof DataView) {
                 // Use DataView methods
@@ -323,7 +329,9 @@ class SimConnectService {
                 offset += 8;
                 verticalSpeedFpm = buffer.getFloat64(offset, true);
                 offset += 8;
-                eteSeconds = buffer.getFloat64(offset, true);
+                planeLat = buffer.getFloat64(offset, true);
+                offset += 8;
+                planeLon = buffer.getFloat64(offset, true);
             } else {
                 // Use Node.js Buffer methods
                 headingRaw = buffer.readDoubleLE(offset);
@@ -348,7 +356,9 @@ class SimConnectService {
                 offset += 8;
                 verticalSpeedFpm = buffer.readDoubleLE(offset);
                 offset += 8;
-                eteSeconds = buffer.readDoubleLE(offset);
+                planeLat = buffer.readDoubleLE(offset);
+                offset += 8;
+                planeLon = buffer.readDoubleLE(offset);
             }
 
             // Debug: Show expected buffer structure
@@ -387,17 +397,12 @@ class SimConnectService {
                 `PAX: ${paxQuantity.toFixed(0)} pax`
             );
 
-            // GPS TARGET DISTANCE is in meters; compute ETE from distance / ground speed
-            const distanceMeters = eteSeconds; // variable reused for distance (12th SimVar slot)
-            const distanceNm = distanceMeters / 1852;
-            const computedEteSeconds = (groundSpeedKnots > 5)
-                ? Math.round((distanceNm / groundSpeedKnots) * 3600)
-                : 0;
-
             // Build telemetry object with all operational data
             this.telemetry = {
                 position: {
-                    heading: headingDegrees
+                    heading: headingDegrees,
+                    lat: planeLat || 0,
+                    lon: planeLon || 0
                 },
                 altitude: {
                     indicated: altitudeFeet
@@ -431,8 +436,8 @@ class SimConnectService {
                 navigation: {
                     nextWaypoint: null,
                     nextWaypointDistance: null,
-                    eteSeconds: computedEteSeconds,
-                    eteMinutes: Math.round(computedEteSeconds / 60)
+                    eteSeconds: null,
+                    eteMinutes: null
                 },
                 timestamp: Date.now()
             };
@@ -452,7 +457,7 @@ class SimConnectService {
                     `  Cargo: ${Math.round(cargoWeightLbs)} lbs\n` +
                     `  Passengers: ${Math.round(paxQuantity)} pax\n` +
                     `  Total Weight: ${Math.round(totalWeightLbs)} lbs (Empty: ${Math.round(emptyWeightLbs)} lbs)\n` +
-                    `  ETE to Destination: ${Math.round(computedEteSeconds / 60)} min (${distanceNm.toFixed(1)} nm @ ${Math.round(groundSpeedKnots)} kts)`
+                    `  Position: ${planeLat?.toFixed(4)}°N ${planeLon?.toFixed(4)}°E`
                 );
                 this._firstPollLogged = true;
             }

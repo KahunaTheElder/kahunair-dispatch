@@ -240,6 +240,10 @@ class SimBriefClient {
         estimatedTime: parseInt(getField(generalData, 'flight_time', 'flightTime') || getField(generalData, 'total_minutes', 'totalMinutes') || 0) || 0,
         blockTime: parseInt(getField(generalData, 'block_time', 'blockTime') || 0) || 0,
 
+        // Destination coordinates for haversine ETE computation
+        destinationLat: parseFloat(getField(destinationData, 'pos_lat', 'lat', 'latitude') || 0) || 0,
+        destinationLon: parseFloat(getField(destinationData, 'pos_long', 'pos_lon', 'lon', 'longitude') || 0) || 0,
+
         // Raw metadata
         downloadedAt: new Date().toISOString(),
         ofpId: getField(rawData, 'ofp_id', 'ofpId') || '',

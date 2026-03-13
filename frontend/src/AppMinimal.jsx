@@ -146,6 +146,7 @@ export default function AppMinimal() {
     customNotes: ''
   })
   const [vaSaveStatus, setVASaveStatus] = useState('idle') // idle | saving | saved | error
+  const [destCoords, setDestCoords] = useState(null)      // { lat, lon } from SimBrief OFP
 
   const openVAProfile = async () => {
     setVASaveStatus('idle')
@@ -804,6 +805,11 @@ export default function AppMinimal() {
               star: ofp.arrival?.STAR || null
             }
           }
+
+          // Store destination coordinates for haversine ETE computation
+          if (ofp.destinationLat && ofp.destinationLon) {
+            setDestCoords({ lat: ofp.destinationLat, lon: ofp.destinationLon })
+          }
         }
       } catch (error) {
         // Silently fail - OFP is optional, app continues without it
@@ -1042,10 +1048,20 @@ export default function AppMinimal() {
     const vs = telemetry.speed?.verticalSpeed ? Math.round(telemetry.speed.verticalSpeed) : '---'
 
     // Format ETE as "Xh Ymm" if >= 60 minutes, otherwise just minutes
+    // Computed via haversine from plane lat/lon (SimConnect) to destination lat/lon (SimBrief OFP)
     let ete = '---'
     let eteUnit = 'MIN'
-    if (telemetry.navigation?.eteMinutes) {
-      const eteMin = Math.round(telemetry.navigation.eteMinutes)
+    const planeLat = telemetry.position?.lat
+    const planeLon = telemetry.position?.lon
+    const gsRaw = telemetry.speed?.groundSpeed
+    if (planeLat && planeLon && destCoords?.lat && destCoords?.lon && gsRaw > 5) {
+      const toRad = d => d * Math.PI / 180
+      const R = 3440.065 // Earth radius in NM
+      const dLat = toRad(destCoords.lat - planeLat)
+      const dLon = toRad(destCoords.lon - planeLon)
+      const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(planeLat)) * Math.cos(toRad(destCoords.lat)) * Math.sin(dLon / 2) ** 2
+      const distNm = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+      const eteMin = Math.round((distNm / gsRaw) * 60)
       if (eteMin >= 60) {
         const hours = Math.floor(eteMin / 60)
         const mins = eteMin % 60
