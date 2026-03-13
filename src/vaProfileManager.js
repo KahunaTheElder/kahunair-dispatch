@@ -26,13 +26,24 @@ class VAProfileManager {
 
   createBlankProfile() {
     return {
+      // Identity
       name: '',
-      callsign: '',
       about: '',
-      culture: '',           // e.g. "Island hospitality meets professional aviation standards"
+      // Crew service standards
+      crewGreeting: '',        // How crew greets passengers
+      signatureAmenities: '',  // Signature in-flight offerings
+      traditions: '',          // Pre-flight rituals, customs, milestone traditions
+      // Airline culture
+      culture: '',             // Airline personality / defining character
+      safetyQuirks: '',        // Non-standard safety rules or procedures
+      humorPolicy: '',         // Cabin tone / humor policy
+      // Operations
       communicationStyle: 'formal, professional, to-the-point',
-      serviceLevel: 'premium',   // standard | premium | ultra-premium
+      serviceLevel: 'premium',
+      // Dispatcher
       dispatcherStyle: 'professional and supportive',
+      companyPolicies: '',     // Operational policies, reporting requirements
+      // Additional
       customNotes: '',
       lastUpdated: new Date().toISOString(),
       createdAt: new Date().toISOString()
@@ -79,7 +90,7 @@ class VAProfileManager {
       let profile = existingResult.profile || this.createBlankProfile();
 
       // Update with provided data (allow empty strings to clear fields)
-      const fields = ['name', 'callsign', 'about', 'culture', 'communicationStyle', 'serviceLevel', 'dispatcherStyle', 'customNotes'];
+      const fields = ['name', 'about', 'crewGreeting', 'signatureAmenities', 'traditions', 'culture', 'safetyQuirks', 'humorPolicy', 'communicationStyle', 'serviceLevel', 'dispatcherStyle', 'companyPolicies', 'customNotes'];
       for (const field of fields) {
         if (profileData[field] !== undefined) profile[field] = profileData[field];
       }

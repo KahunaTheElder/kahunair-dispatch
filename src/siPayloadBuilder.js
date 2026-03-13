@@ -33,7 +33,18 @@ function buildCrewData(captainProfile, faProfiles, flight, vaProfile, faMembers 
 
   const lines = [];
   lines.push(`Virtual Airline: ${vaName}`);
+  if (va.about) lines.push(`About: ${va.about}`);
+  lines.push('');
+
+  lines.push('AIRLINE STANDARDS:');
+  if (va.crewGreeting) lines.push(`Passenger Greeting: ${va.crewGreeting}`);
+  if (va.signatureAmenities) lines.push(`Signature Service: ${va.signatureAmenities}`);
+  if (va.traditions) lines.push(`Traditions & Rituals: ${va.traditions}`);
+  lines.push('');
+
   lines.push(`Culture: ${culture}`);
+  if (va.humorPolicy) lines.push(`Cabin Tone: ${va.humorPolicy}`);
+  if (va.safetyQuirks) lines.push(`Safety Notes: ${va.safetyQuirks}`);
   lines.push(`Service Standard: ${serviceLevel}`);
   lines.push(`Flight: ${dep} → ${arr} | Aircraft: ${aircraft}${reg ? ' (' + reg + ')' : ''}`);
   lines.push('');
@@ -74,8 +85,10 @@ function buildCrewData(captainProfile, faProfiles, flight, vaProfile, faMembers 
   }
 
   lines.push(`Operational Policy: ${professionalism} — ${commStyle}`);
-  lines.push(`Safety Priority: ${safety}`);
-
+  lines.push(`Safety Priority: ${safety}`);  if (va.customNotes) {
+    lines.push('');
+    lines.push(`Additional Notes: ${va.customNotes}`);
+  }
   return lines.join('\n');
 }
 
@@ -181,6 +194,14 @@ function buildDispatcherData(flight, vaProfile) {
   lines.push('- Weather briefing available');
   lines.push('- Clearance expected on initial contact');
   lines.push('- Maintain standard separation and procedures');
+  if (va.companyPolicies) {
+    lines.push('');
+    lines.push(`Company Policies: ${va.companyPolicies}`);
+  }
+  if (va.customNotes) {
+    lines.push('');
+    lines.push(`Additional: ${va.customNotes}`);
+  }
 
   return lines.join('\n');
 }

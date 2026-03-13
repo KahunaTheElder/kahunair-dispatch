@@ -112,9 +112,13 @@ export default function AppMinimal() {
   // VA Profile modal state
   const [showVAProfile, setShowVAProfile] = useState(false)
   const [vaForm, setVAForm] = useState({
-    name: '', callsign: '', about: '', culture: '',
+    name: '', about: '',
+    crewGreeting: '', signatureAmenities: '', traditions: '',
+    culture: '', safetyQuirks: '', humorPolicy: '',
     communicationStyle: 'formal, professional, to-the-point',
-    serviceLevel: 'premium', dispatcherStyle: 'professional and supportive', customNotes: ''
+    serviceLevel: 'premium',
+    dispatcherStyle: 'professional and supportive', companyPolicies: '',
+    customNotes: ''
   })
   const [vaSaveStatus, setVASaveStatus] = useState('idle') // idle | saving | saved | error
 
@@ -129,12 +133,17 @@ export default function AppMinimal() {
           const p = data.profile
           setVAForm({
             name: p.name || '',
-            callsign: p.callsign || '',
             about: p.about || '',
+            crewGreeting: p.crewGreeting || '',
+            signatureAmenities: p.signatureAmenities || '',
+            traditions: p.traditions || '',
             culture: p.culture || '',
+            safetyQuirks: p.safetyQuirks || '',
+            humorPolicy: p.humorPolicy || '',
             communicationStyle: p.communicationStyle || 'formal, professional, to-the-point',
             serviceLevel: p.serviceLevel || 'premium',
             dispatcherStyle: p.dispatcherStyle || 'professional and supportive',
+            companyPolicies: p.companyPolicies || '',
             customNotes: p.customNotes || ''
           })
         }
@@ -1453,7 +1462,7 @@ export default function AppMinimal() {
             borderRadius: '8px',
             padding: '24px',
             width: '100%',
-            maxWidth: '520px',
+            maxWidth: '540px',
             maxHeight: '90vh',
             overflowY: 'auto'
           }}>
@@ -1468,58 +1477,106 @@ export default function AppMinimal() {
               Your virtual airline identity — used by SayIntentions.AI to shape the personality of ATC, crew interactions, and dispatcher briefings.
             </p>
 
-            {/* Identity */}
+            {/* ── IDENTITY ── */}
             <div style={{ marginBottom: '6px', color: '#6b7280', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Identity</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px', gap: '10px', marginBottom: '12px' }}>
-              <div>
-                <label style={{ display: 'block', color: '#9ca3af', fontSize: '12px', marginBottom: '4px' }}>Airline Name</label>
-                <input
-                  type="text"
-                  value={vaForm.name}
-                  onChange={e => setVAForm(f => ({ ...f, name: e.target.value }))}
-                  placeholder="e.g. Kahuna Air Industries"
-                  style={{ width: '100%', backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '4px', color: '#f9fafb', fontSize: '13px', padding: '7px 10px', boxSizing: 'border-box', outline: 'none' }}
-                />
-              </div>
-              <div>
-                <label style={{ display: 'block', color: '#9ca3af', fontSize: '12px', marginBottom: '4px' }}>ICAO Callsign</label>
-                <input
-                  type="text"
-                  value={vaForm.callsign}
-                  onChange={e => setVAForm(f => ({ ...f, callsign: e.target.value.toUpperCase() }))}
-                  placeholder="e.g. KHNA"
-                  maxLength={8}
-                  style={{ width: '100%', backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '4px', color: '#f9fafb', fontSize: '13px', padding: '7px 10px', boxSizing: 'border-box', outline: 'none', fontFamily: 'monospace' }}
-                />
-              </div>
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', color: '#9ca3af', fontSize: '12px', marginBottom: '4px' }}>Airline Name</label>
+              <input
+                type="text"
+                value={vaForm.name}
+                onChange={e => setVAForm(f => ({ ...f, name: e.target.value }))}
+                placeholder="e.g. Kahuna Air Industries"
+                style={{ width: '100%', backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '4px', color: '#f9fafb', fontSize: '13px', padding: '7px 10px', boxSizing: 'border-box', outline: 'none' }}
+              />
             </div>
 
-            {/* About */}
-            <div style={{ marginBottom: '12px' }}>
-              <label style={{ display: 'block', color: '#9ca3af', fontSize: '12px', marginBottom: '4px' }}>About</label>
+            {/* ── ABOUT ── */}
+            <div style={{ marginBottom: '6px', color: '#6b7280', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>About Your Airline</div>
+            <div style={{ marginBottom: '16px' }}>
               <textarea
                 value={vaForm.about}
                 onChange={e => setVAForm(f => ({ ...f, about: e.target.value }))}
-                placeholder="Brief description of your virtual airline — history, routes, focus area..."
+                placeholder="Brief history, mission, and focus area of your virtual airline..."
                 rows={3}
                 style={{ width: '100%', backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '4px', color: '#f9fafb', fontSize: '13px', padding: '7px 10px', boxSizing: 'border-box', outline: 'none', resize: 'vertical', fontFamily: 'inherit' }}
               />
             </div>
 
-            {/* Culture */}
-            <div style={{ marginBottom: '6px', marginTop: '4px', color: '#6b7280', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Personality & Operations</div>
-            <div style={{ marginBottom: '12px' }}>
-              <label style={{ display: 'block', color: '#9ca3af', fontSize: '12px', marginBottom: '4px' }}>Culture & Traditions</label>
+            {/* ── CREW SERVICE STANDARDS ── */}
+            <div style={{ marginBottom: '6px', color: '#6b7280', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Crew Service Standards</div>
+            <div style={{ marginBottom: '10px' }}>
+              <label style={{ display: 'block', color: '#9ca3af', fontSize: '12px', marginBottom: '2px' }}>Passenger Greeting</label>
+              <div style={{ color: '#4b5563', fontSize: '11px', marginBottom: '4px' }}>How does your crew greet passengers?</div>
+              <input
+                type="text"
+                value={vaForm.crewGreeting}
+                onChange={e => setVAForm(f => ({ ...f, crewGreeting: e.target.value }))}
+                placeholder='e.g. "Aloha everyone, welcome aboard Kahuna Air!"'
+                style={{ width: '100%', backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '4px', color: '#f9fafb', fontSize: '13px', padding: '7px 10px', boxSizing: 'border-box', outline: 'none' }}
+              />
+            </div>
+            <div style={{ marginBottom: '10px' }}>
+              <label style={{ display: 'block', color: '#9ca3af', fontSize: '12px', marginBottom: '2px' }}>Signature Service</label>
+              <div style={{ color: '#4b5563', fontSize: '11px', marginBottom: '4px' }}>Signature amenities or in-flight offerings</div>
+              <input
+                type="text"
+                value={vaForm.signatureAmenities}
+                onChange={e => setVAForm(f => ({ ...f, signatureAmenities: e.target.value }))}
+                placeholder="e.g. complimentary leis on arrival, island cocktails on long-hauls"
+                style={{ width: '100%', backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '4px', color: '#f9fafb', fontSize: '13px', padding: '7px 10px', boxSizing: 'border-box', outline: 'none' }}
+              />
+            </div>
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', color: '#9ca3af', fontSize: '12px', marginBottom: '2px' }}>Traditions & Rituals</label>
+              <div style={{ color: '#4b5563', fontSize: '11px', marginBottom: '4px' }}>Pre-flight rituals, in-flight customs, milestone celebrations</div>
               <textarea
-                value={vaForm.culture}
-                onChange={e => setVAForm(f => ({ ...f, culture: e.target.value }))}
-                placeholder="e.g. Island hospitality meets professional aviation standards"
+                value={vaForm.traditions}
+                onChange={e => setVAForm(f => ({ ...f, traditions: e.target.value }))}
+                placeholder="e.g. Captain's pre-flight speech always ends with 'Blue skies ahead'. First 100-hour milestone celebrated with champagne."
                 rows={2}
                 style={{ width: '100%', backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '4px', color: '#f9fafb', fontSize: '13px', padding: '7px 10px', boxSizing: 'border-box', outline: 'none', resize: 'vertical', fontFamily: 'inherit' }}
               />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
+            {/* ── AIRLINE CULTURE ── */}
+            <div style={{ marginBottom: '6px', color: '#6b7280', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Airline Culture</div>
+            <div style={{ marginBottom: '10px' }}>
+              <label style={{ display: 'block', color: '#9ca3af', fontSize: '12px', marginBottom: '2px' }}>Airline Personality</label>
+              <div style={{ color: '#4b5563', fontSize: '11px', marginBottom: '4px' }}>What defines your airline's identity and character?</div>
+              <textarea
+                value={vaForm.culture}
+                onChange={e => setVAForm(f => ({ ...f, culture: e.target.value }))}
+                placeholder="e.g. Island hospitality meets professional aviation standards. Warmth, family spirit, and a love of the Pacific."
+                rows={2}
+                style={{ width: '100%', backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '4px', color: '#f9fafb', fontSize: '13px', padding: '7px 10px', boxSizing: 'border-box', outline: 'none', resize: 'vertical', fontFamily: 'inherit' }}
+              />
+            </div>
+            <div style={{ marginBottom: '10px' }}>
+              <label style={{ display: 'block', color: '#9ca3af', fontSize: '12px', marginBottom: '2px' }}>Safety & Policy Quirks</label>
+              <div style={{ color: '#4b5563', fontSize: '11px', marginBottom: '4px' }}>Any non-standard safety rules or procedures SI should know about</div>
+              <input
+                type="text"
+                value={vaForm.safetyQuirks}
+                onChange={e => setVAForm(f => ({ ...f, safetyQuirks: e.target.value }))}
+                placeholder="e.g. All crew must verbally confirm door-check, strict no-phone policy at altitude"
+                style={{ width: '100%', backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '4px', color: '#f9fafb', fontSize: '13px', padding: '7px 10px', boxSizing: 'border-box', outline: 'none' }}
+              />
+            </div>
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', color: '#9ca3af', fontSize: '12px', marginBottom: '2px' }}>Cabin Tone Policy</label>
+              <div style={{ color: '#4b5563', fontSize: '11px', marginBottom: '4px' }}>What's the cabin humor or tone policy?</div>
+              <input
+                type="text"
+                value={vaForm.humorPolicy}
+                onChange={e => setVAForm(f => ({ ...f, humorPolicy: e.target.value }))}
+                placeholder="e.g. One island-themed pun per flight is permitted; professional otherwise"
+                style={{ width: '100%', backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '4px', color: '#f9fafb', fontSize: '13px', padding: '7px 10px', boxSizing: 'border-box', outline: 'none' }}
+              />
+            </div>
+
+            {/* ── OPERATIONS ── */}
+            <div style={{ marginBottom: '6px', color: '#6b7280', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Operations</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '16px' }}>
               <div>
                 <label style={{ display: 'block', color: '#9ca3af', fontSize: '12px', marginBottom: '4px' }}>Communication Style</label>
                 <select
@@ -1547,7 +1604,9 @@ export default function AppMinimal() {
               </div>
             </div>
 
-            <div style={{ marginBottom: '12px' }}>
+            {/* ── DISPATCHER ── */}
+            <div style={{ marginBottom: '6px', color: '#6b7280', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Dispatcher</div>
+            <div style={{ marginBottom: '10px' }}>
               <label style={{ display: 'block', color: '#9ca3af', fontSize: '12px', marginBottom: '4px' }}>Dispatcher Style</label>
               <input
                 type="text"
@@ -1557,15 +1616,27 @@ export default function AppMinimal() {
                 style={{ width: '100%', backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '4px', color: '#f9fafb', fontSize: '13px', padding: '7px 10px', boxSizing: 'border-box', outline: 'none' }}
               />
             </div>
-
-            {/* Custom Notes */}
-            <div style={{ marginBottom: '6px', marginTop: '4px', color: '#6b7280', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Additional Context</div>
             <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', color: '#9ca3af', fontSize: '12px', marginBottom: '4px' }}>Custom Notes for SI</label>
+              <label style={{ display: 'block', color: '#9ca3af', fontSize: '12px', marginBottom: '2px' }}>Company Policies</label>
+              <div style={{ color: '#4b5563', fontSize: '11px', marginBottom: '4px' }}>Operational policies, reporting requirements, company-specific quirks</div>
+              <textarea
+                value={vaForm.companyPolicies}
+                onChange={e => setVAForm(f => ({ ...f, companyPolicies: e.target.value }))}
+                placeholder="e.g. All flights must log fuel at T/O and T/D. Delays over 20 min require dispatch notification."
+                rows={2}
+                style={{ width: '100%', backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '4px', color: '#f9fafb', fontSize: '13px', padding: '7px 10px', boxSizing: 'border-box', outline: 'none', resize: 'vertical', fontFamily: 'inherit' }}
+              />
+            </div>
+
+            {/* ── ADDITIONAL NOTES ── */}
+            <div style={{ marginBottom: '6px', color: '#6b7280', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Additional Notes</div>
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', color: '#9ca3af', fontSize: '12px', marginBottom: '2px' }}>Custom Notes for SI</label>
+              <div style={{ color: '#4b5563', fontSize: '11px', marginBottom: '4px' }}>Anything else you want SayIntentions.AI to know</div>
               <textarea
                 value={vaForm.customNotes}
                 onChange={e => setVAForm(f => ({ ...f, customNotes: e.target.value }))}
-                placeholder="Any special instructions or context for SayIntentions.AI — operational quirks, special crew behaviors, etc."
+                placeholder="Any special instructions, operational quirks, or context for SayIntentions.AI..."
                 rows={3}
                 style={{ width: '100%', backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '4px', color: '#f9fafb', fontSize: '13px', padding: '7px 10px', boxSizing: 'border-box', outline: 'none', resize: 'vertical', fontFamily: 'inherit' }}
               />
