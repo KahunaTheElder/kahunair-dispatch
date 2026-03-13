@@ -1093,7 +1093,7 @@ class DispatchServer {
             arrRwy: cf.flight_plan_arriving_runway || null,
             approach: awx.approaches_in_use || null,
             gate: cf.assigned_gate || null,
-            taxiPath: Array.isArray(cf.taxi_path) ? `TAXI ROUTE (${cf.taxi_path.length} wpts)` : (cf.taxi_path ? String(cf.taxi_path) : null)
+            taxiPath: Array.isArray(cf.taxi_path) && cf.taxi_path.length > 0 ? 'TAXI RCVD' : (cf.taxi_path ? String(cf.taxi_path) : null)
           }
         });
       } catch (e) {
