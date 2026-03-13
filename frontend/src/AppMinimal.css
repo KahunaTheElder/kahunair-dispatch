@@ -255,6 +255,30 @@ body {
   font-weight: 600;
 }
 
+.crew-title-toggle {
+  cursor: pointer;
+  user-select: none;
+}
+
+.crew-title-toggle:hover {
+  color: #d1d5db;
+}
+
+.crew-chevron {
+  font-size: 10px;
+  margin-right: 4px;
+  color: #6b7280;
+}
+
+.crew-collapsed-summary {
+  margin-left: 14px;
+  font-size: 11px;
+  color: #6b7280;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  text-transform: none;
+}
+
 .crew-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));

@@ -83,6 +83,7 @@ export default function AppMinimal() {
   })
   const [crew, setCrew] = useState(null)
   const [crewProfiles, setCrewProfiles] = useState({}) // crewId -> profile mapping
+  const [crewCollapsed, setCrewCollapsed] = useState(false)
   const [cargoCharter, setCargoCharter] = useState({ cargos: [], charters: [] }) // NEW: Cargo/Charter data
   const [cargoStatus, setCargoStatus] = useState('IDLE') // IDLE | AWAITING_OA_START | LOADING | READY
   const [noFlight, setNoFlight] = useState(true) // true until OA confirms an active flight
@@ -1247,30 +1248,36 @@ export default function AppMinimal() {
   }
 
   const CrewDisplay = () => {
+    const chevron = crewCollapsed ? '▸' : '▾'
+
     if (!crew || !crew.members || crew.members.length === 0) {
       return (
         <div className="crew-section">
-          <div className="crew-title">CREW</div>
-          <div className="crew-grid">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="crew-card placeholder">
-                <div className="crew-role">
-                  <div className="crew-name">---</div>
-                  <div className="crew-position">---</div>
-                </div>
-                <div className="crew-stats">
-                  <div className="crew-stat">
-                    <div className="crew-stat-label">HOURS</div>
-                    <div className="crew-stat-value">---</div>
-                  </div>
-                  <div className="crew-stat">
-                    <div className="crew-stat-label">FLIGHTS</div>
-                    <div className="crew-stat-value">---</div>
-                  </div>
-                </div>
-              </div>
-            ))}
+          <div className="crew-title crew-title-toggle" onClick={() => setCrewCollapsed(v => !v)}>
+            <span className="crew-chevron">{chevron}</span> CREW
           </div>
+          {!crewCollapsed && (
+            <div className="crew-grid">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="crew-card placeholder">
+                  <div className="crew-role">
+                    <div className="crew-name">---</div>
+                    <div className="crew-position">---</div>
+                  </div>
+                  <div className="crew-stats">
+                    <div className="crew-stat">
+                      <div className="crew-stat-label">HOURS</div>
+                      <div className="crew-stat-value">---</div>
+                    </div>
+                    <div className="crew-stat">
+                      <div className="crew-stat-label">FLIGHTS</div>
+                      <div className="crew-stat-value">---</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )
     }
@@ -1282,58 +1289,69 @@ export default function AppMinimal() {
 
     // SI status badge (clickable if we have debug info)
     const siBadge = siSendStatus === 'applied'
-      ? <span onClick={() => setShowSiDebug(v => !v)} style={{ marginLeft: '10px', fontSize: '11px', color: '#4ade80', fontWeight: 600, cursor: siDebugInfo ? 'pointer' : 'default', textDecoration: siDebugInfo ? 'underline dotted' : 'none' }}>✓ Active in new session! {siDebugInfo ? '(details)' : ''}</span>
+      ? <span onClick={(e) => { e.stopPropagation(); setShowSiDebug(v => !v) }} style={{ marginLeft: '10px', fontSize: '11px', color: '#4ade80', fontWeight: 600, cursor: siDebugInfo ? 'pointer' : 'default', textDecoration: siDebugInfo ? 'underline dotted' : 'none' }}>✓ Active in new session! {siDebugInfo ? '(details)' : ''}</span>
       : siSendStatus === 'sent'
-      ? <span onClick={() => setShowSiDebug(v => !v)} style={{ marginLeft: '10px', fontSize: '11px', color: '#86efac', fontWeight: 600, cursor: siDebugInfo ? 'pointer' : 'default', textDecoration: siDebugInfo ? 'underline dotted' : 'none' }}>✓ Sent — applies next SI flight {siDebugInfo ? '(details)' : ''}</span>
+      ? <span onClick={(e) => { e.stopPropagation(); setShowSiDebug(v => !v) }} style={{ marginLeft: '10px', fontSize: '11px', color: '#86efac', fontWeight: 600, cursor: siDebugInfo ? 'pointer' : 'default', textDecoration: siDebugInfo ? 'underline dotted' : 'none' }}>✓ Sent — applies next SI flight {siDebugInfo ? '(details)' : ''}</span>
       : siSendStatus === 'sending'
       ? <span style={{ marginLeft: '10px', fontSize: '11px', color: '#fbbf24', fontWeight: 600 }}>⟳ Sending...</span>
       : siSendStatus === 'waiting'
       ? <span style={{ marginLeft: '10px', fontSize: '11px', color: '#f59e0b', fontWeight: 600 }}>⏳ Waiting for SI...</span>
       : siSendStatus === 'error'
-      ? <span onClick={() => setShowSiDebug(v => !v)} style={{ marginLeft: '10px', fontSize: '11px', color: '#f87171', fontWeight: 600, cursor: siDebugInfo ? 'pointer' : 'default', textDecoration: siDebugInfo ? 'underline dotted' : 'none' }}>⚠ SI Error {siDebugInfo ? '(details)' : ''}</span>
+      ? <span onClick={(e) => { e.stopPropagation(); setShowSiDebug(v => !v) }} style={{ marginLeft: '10px', fontSize: '11px', color: '#f87171', fontWeight: 600, cursor: siDebugInfo ? 'pointer' : 'default', textDecoration: siDebugInfo ? 'underline dotted' : 'none' }}>⚠ SI Error {siDebugInfo ? '(details)' : ''}</span>
       : null
+
+    // Collapsed summary: names of crew members
+    const crewSummary = crew.members.map(m => {
+      const roleAbbr = m.role === 'Captain' ? 'CPT' : m.role === 'First Officer' ? 'F/O' : 'FA'
+      return `${roleAbbr}: ${m.name}`
+    }).join('  •  ')
 
     return (
       <div className="crew-section">
-        <div className="crew-title" style={{ display: 'flex', alignItems: 'center' }}>
-          CREW {siBadge}
-        </div>
-        <div className="crew-grid">
-          {captain && (
-            <CrewCard
-              crewId={captain.isMe ? 'my-pilot' : captain.id}
-              name={captain.name}
-              role={captain.role}
-              hours={captain.hours}
-              flights={captain.flights}
-              profile={crewProfiles[captain.isMe ? 'my-pilot' : captain.id]}
-              onEdit={setEditingCrewId}
-            />
+        <div className="crew-title crew-title-toggle" style={{ display: 'flex', alignItems: 'center' }} onClick={() => setCrewCollapsed(v => !v)}>
+          <span className="crew-chevron">{chevron}</span> CREW {siBadge}
+          {crewCollapsed && (
+            <span className="crew-collapsed-summary">{crewSummary}</span>
           )}
-          {firstOfficer && (
-            <CrewCard
-              crewId={firstOfficer.id}
-              name={firstOfficer.name}
-              role={firstOfficer.role}
-              hours={firstOfficer.hours}
-              flights={firstOfficer.flights}
-              profile={crewProfiles[firstOfficer.id]}
-              onEdit={setEditingCrewId}
-            />
-          )}
-          {attendants.map((member) => (
-            <CrewCard
-              key={member.id}
-              crewId={member.id}
-              name={member.name}
-              role={member.role}
-              hours={member.hours}
-              flights={member.flights}
-              profile={crewProfiles[member.id]}
-              onEdit={setEditingCrewId}
-            />
-          ))}
         </div>
+        {!crewCollapsed && (
+          <div className="crew-grid">
+            {captain && (
+              <CrewCard
+                crewId={captain.isMe ? 'my-pilot' : captain.id}
+                name={captain.name}
+                role={captain.role}
+                hours={captain.hours}
+                flights={captain.flights}
+                profile={crewProfiles[captain.isMe ? 'my-pilot' : captain.id]}
+                onEdit={setEditingCrewId}
+              />
+            )}
+            {firstOfficer && (
+              <CrewCard
+                crewId={firstOfficer.id}
+                name={firstOfficer.name}
+                role={firstOfficer.role}
+                hours={firstOfficer.hours}
+                flights={firstOfficer.flights}
+                profile={crewProfiles[firstOfficer.id]}
+                onEdit={setEditingCrewId}
+              />
+            )}
+            {attendants.map((member) => (
+              <CrewCard
+                key={member.id}
+                crewId={member.id}
+                name={member.name}
+                role={member.role}
+                hours={member.hours}
+                flights={member.flights}
+                profile={crewProfiles[member.id]}
+                onEdit={setEditingCrewId}
+              />
+            ))}
+          </div>
+        )}
       </div>
     )
   }
