@@ -100,6 +100,8 @@ export default function AppMinimal() {
   const pendingSISendRef = useRef(null)                  // crew members queued to send once SI comes up
   const siFlightIdRef = useRef(null)                    // last known flight_id — changes on new SI session
   const siSentSessionRef = useRef(false)                // true after a successful send this Kahuna session
+  const ofpProceduresRef = useRef(null)                 // OFP baseline procedures, set once on first OFP load
+  const [siProcedures, setSiProcedures] = useState(null) // live procedures from SI flight.json
 
   // Settings modal state
   const [showSettings, setShowSettings] = useState(false)
@@ -769,6 +771,16 @@ export default function AppMinimal() {
               star: ofp.arrival?.STAR || '---'
             }
           })
+
+          // Capture OFP baseline once — used later to detect SI procedure changes
+          if (!ofpProceduresRef.current) {
+            ofpProceduresRef.current = {
+              depRwy: ofp.departure?.runway || null,
+              sid: ofp.departure?.SID || null,
+              arrRwy: ofp.arrival?.runway || null,
+              star: ofp.arrival?.STAR || null
+            }
+          }
         }
       } catch (error) {
         // Silently fail - OFP is optional, app continues without it
@@ -845,6 +857,27 @@ export default function AppMinimal() {
       return () => clearTimeout(timer)
     }
   }, [flightData?.departure?.ICAO, apiUrl])
+
+  // Poll SI flight.json every 15s for live procedure changes (STAR, SID, runway, approach)
+  useEffect(() => {
+    if (!siRunning) {
+      setSiProcedures(null)
+      return
+    }
+    const pollProcs = async () => {
+      try {
+        const res = await fetch(`${apiUrl}/api/si/procedures`, { signal: AbortSignal.timeout(5000) })
+        if (!res.ok) return
+        const json = await res.json()
+        if (json.success && json.procedures) {
+          setSiProcedures(json.procedures)
+        }
+      } catch { /* silent — flight.json may not exist yet */ }
+    }
+    pollProcs()
+    const interval = setInterval(pollProcs, 15000)
+    return () => clearInterval(interval)
+  }, [apiUrl, siRunning])
 
   const StatusDot = ({ status, label }) => {
     const dotColor = {
@@ -1075,10 +1108,18 @@ export default function AppMinimal() {
     const altName = flightData.alternate?.name || '----'
     const route = flightData.route || ''
 
-    const depRwy = procedures?.departure?.runway || '---'
-    const depSid = procedures?.departure?.sid || '---'
-    const arrRwy = procedures?.arrival?.runway || '---'
-    const arrStar = procedures?.arrival?.star || '---'
+    const depRwy = siProcedures?.depRwy || procedures?.departure?.runway || '---'
+    const depSid = siProcedures?.sid || procedures?.departure?.sid || '---'
+    const arrRwy = siProcedures?.arrRwy || procedures?.arrival?.runway || '---'
+    const arrStar = siProcedures?.star || procedures?.arrival?.star || '---'
+    const approach = siProcedures?.approach || null
+
+    // Detect changes vs OFP baseline (highlight amber when SI value differs from what was filed)
+    const ofpBase = ofpProceduresRef.current
+    const chgDepRwy = ofpBase && siProcedures?.depRwy && siProcedures.depRwy !== ofpBase.depRwy
+    const chgSid = ofpBase && siProcedures?.sid && siProcedures.sid !== ofpBase.sid
+    const chgStar = ofpBase && siProcedures?.star && siProcedures.star !== ofpBase.star
+    const chgArrRwy = ofpBase && siProcedures?.arrRwy && siProcedures.arrRwy !== ofpBase.arrRwy
 
     // Format wind as direction/speed (e.g., "180/15")
     const windDir = flightData.avgWindDir && flightData.avgWindDir !== '---' ? String(flightData.avgWindDir).padStart(3, '0') : '---'
@@ -1099,7 +1140,14 @@ export default function AppMinimal() {
           Alternate: {altIcao} / {altName}
         </div>
         <div className="flight-procedures-text">
-          RWY {depRwy} | SID {depSid} | STAR {arrStar} | RWY {arrRwy}
+          <span style={chgDepRwy ? { color: '#fbbf24' } : undefined} title={chgDepRwy ? `was: ${ofpBase.depRwy}` : undefined}>RWY {depRwy}{chgDepRwy ? ' ↑' : ''}</span>
+          {' | '}
+          <span style={chgSid ? { color: '#fbbf24' } : undefined} title={chgSid ? `was: ${ofpBase.sid}` : undefined}>SID {depSid}{chgSid ? ' ↑' : ''}</span>
+          {' | '}
+          <span style={chgStar ? { color: '#fbbf24' } : undefined} title={chgStar ? `was: ${ofpBase.star}` : undefined}>STAR {arrStar}{chgStar ? ' ↑' : ''}</span>
+          {' | '}
+          <span style={chgArrRwy ? { color: '#fbbf24' } : undefined} title={chgArrRwy ? `was: ${ofpBase.arrRwy}` : undefined}>RWY {arrRwy}{chgArrRwy ? ' ↑' : ''}</span>
+          {approach && <span style={{ color: '#60a5fa', fontWeight: 600 }}>{' | '}APPR {approach}</span>}
         </div>
         <div className="flight-route-text">
           {route}

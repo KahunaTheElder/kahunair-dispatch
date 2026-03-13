@@ -1064,6 +1064,42 @@ class DispatchServer {
     });
 
     /**
+     * GET /api/si/procedures
+     * Read current SID, STAR, runways, and approach from flight.json.
+     * Used by the frontend to detect procedure changes vs the filed OFP.
+     */
+    this.app.get('/api/si/procedures', (req, res) => {
+      try {
+        const fs = require('fs');
+        const path = require('path');
+        const os = require('os');
+        const flightJsonPath = path.join(
+          process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local'),
+          'SayIntentionsAI', 'flight.json'
+        );
+        if (!fs.existsSync(flightJsonPath)) {
+          return res.json({ success: false, error: 'flight.json not found' });
+        }
+        const flightJson = JSON.parse(fs.readFileSync(flightJsonPath, 'utf8'));
+        const fd = flightJson?.flight_details || {};
+        const cf = fd.current_flight || {};
+        const awx = fd.arrival_wx || {};
+        return res.json({
+          success: true,
+          procedures: {
+            depRwy: cf.flight_plan_departing_runway || null,
+            sid: cf.flight_plan_sid || null,
+            star: cf.flight_plan_star || null,
+            arrRwy: cf.flight_plan_arriving_runway || null,
+            approach: awx.approaches_in_use || null
+          }
+        });
+      } catch (e) {
+        return res.json({ success: false, error: e.message });
+      }
+    });
+
+    /**
      * POST /api/dispatch/crew-to-si
      * Assemble crew profiles for the active flight, build the importVAData payload,
      * and POST to SayIntentions.AI.
