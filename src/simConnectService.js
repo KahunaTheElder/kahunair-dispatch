@@ -141,10 +141,10 @@ class SimConnectService {
                 SimConnectDataType.FLOAT64
             );
 
-            // ETE to destination (Estimated Time En Route in seconds)
+            // ETE to destination (GPS DESTINATION TIME = seconds remaining to GPS destination)
             this.handle.addToDataDefinition(
                 DEF_ID_TELEMETRY,
-                'GPS ETE',
+                'GPS DESTINATION TIME',
                 'Seconds',
                 SimConnectDataType.FLOAT64
             );
