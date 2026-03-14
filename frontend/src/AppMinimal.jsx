@@ -72,6 +72,7 @@ export default function AppMinimal() {
     avgWindDir: '---',
     avgWindSpd: '---',
     isaDeviation: '---',
+    initialAlt: null,
     cargoWeight: 0,
     cargoUoM: 'lbs',
     cargoTypes: [],
@@ -376,6 +377,7 @@ export default function AppMinimal() {
       avgWindDir: '---',
       avgWindSpd: '---',
       isaDeviation: '---',
+      initialAlt: null,
       cargoWeight: 0,
       cargoUoM: 'lbs',
       cargoTypes: [],
@@ -523,8 +525,19 @@ export default function AppMinimal() {
           console.log(`[AppMinimal] ✓ Backend is healthy (poll #${pollCount})`)
           setBackendStatus('online')
           setOnAirStatus('online')
-          setSimConnectStatus('online')
           setSimBriefStatus('online')
+          // SC status is checked independently — backend being healthy does NOT mean MSFS is running.
+          try {
+            const scRes = await fetch(`${apiUrl}/api/simconnect/status`, { signal: AbortSignal.timeout(2000) })
+            if (scRes.ok) {
+              const scData = await scRes.json()
+              setSimConnectStatus(scData.connected ? 'online' : 'offline')
+            } else {
+              setSimConnectStatus('offline')
+            }
+          } catch {
+            setSimConnectStatus('offline')
+          }
           // Check SI independently via flight.json detection
           try {
             const siRes = await fetch(`${apiUrl}/api/si/status`, { signal: AbortSignal.timeout(3000) })
@@ -689,8 +702,14 @@ export default function AppMinimal() {
 
       for (const member of sorted) {
         if (!isMounted) return // crew changed while loading — bail out
-        // Captain always uses my-pilot profile key
-        const profileId = member.isMe ? 'my-pilot' : member.id
+        // Captain always uses my-pilot profile key.
+        // For others, use the stable People.Id (peopleId) so profiles persist across flights.
+        // Passenger employees (rawRole > 2) are skipped entirely — they don't need profiles.
+        if (member.isPassenger) {
+          console.log('[AppMinimal] Skipping passenger employee:', member.name, '(rawRole=' + member.rawRole + ')')
+          continue
+        }
+        const profileId = member.isMe ? 'my-pilot' : (member.peopleId || member.id)
 
         try {
           const res = await fetch(`${apiUrl}/api/crew/${profileId}/profile`, {
@@ -776,6 +795,9 @@ export default function AppMinimal() {
           const blockFuelThousands = ofp.fuel?.plannedLbs > 0 ? (ofp.fuel.plannedLbs / 1000).toFixed(1) : '----'
           loaded = towThousands !== '----'
 
+          // Initial altitude from SimBrief cruise FL (e.g. 120 → FL120, 290 → FL290)
+          const cruiseLevel = ofp.cruise?.level > 0 ? ofp.cruise.level : null
+
           setFlightData(prev => ({
             ...prev || {},
             alternate: ofp.alternate || { ICAO: '----', name: '----' },
@@ -784,7 +806,8 @@ export default function AppMinimal() {
             blockFuel: blockFuelThousands,
             avgWindDir: ofp.weather?.avgWindDir || '---',
             avgWindSpd: ofp.weather?.avgWindSpd || '---',
-            isaDeviation: ofp.weather?.isaDeviation !== undefined ? ofp.weather.isaDeviation : '---'
+            isaDeviation: ofp.weather?.isaDeviation !== undefined ? ofp.weather.isaDeviation : '---',
+            initialAlt: cruiseLevel
           }))
 
           setProcedures({
@@ -1213,7 +1236,7 @@ export default function AppMinimal() {
           {route}
         </div>
         <div className="flight-params-text">
-          TOW {flightData.tow}K | BF {flightData.blockFuel}K | AVG WIND {formattedWind} | ISA {isaDisplay}°
+          TOW {flightData.tow}K | BF {flightData.blockFuel}K | AVG WIND {formattedWind} | ISA {isaDisplay}°{flightData.initialAlt ? ` | RFL FL${String(flightData.initialAlt).padStart(3, '0')}` : ''}
         </div>
         {/* Cargo: type name + weight, or waiting message */}
         {noFlight ? (
@@ -1334,7 +1357,9 @@ export default function AppMinimal() {
     // Separate crew by role
     const captain = crew.members.find(m => m.role === 'Captain')
     const firstOfficer = crew.members.find(m => m.role === 'First Officer')
-    const attendants = crew.members.filter(m => m.role === 'Flight Attendant')
+    const attendants = crew.members.filter(m => m.role === 'Flight Attendant' && !m.isPassenger)
+    // Helper: stable profile key for any member (mirrors loadCrewProfiles logic)
+    const profileKey = (m) => m.isMe ? 'my-pilot' : (m.peopleId || m.id)
 
     // SI status badge (clickable if we have debug info)
     const siBadge = siSendStatus === 'applied'
@@ -1367,35 +1392,35 @@ export default function AppMinimal() {
           <div className="crew-grid">
             {captain && (
               <CrewCard
-                crewId={captain.isMe ? 'my-pilot' : captain.id}
+                crewId={profileKey(captain)}
                 name={captain.name}
                 role={captain.role}
                 hours={captain.hours}
                 flights={captain.flights}
-                profile={crewProfiles[captain.isMe ? 'my-pilot' : captain.id]}
+                profile={crewProfiles[profileKey(captain)]}
                 onEdit={setEditingCrewId}
               />
             )}
             {firstOfficer && (
               <CrewCard
-                crewId={firstOfficer.id}
+                crewId={profileKey(firstOfficer)}
                 name={firstOfficer.name}
                 role={firstOfficer.role}
                 hours={firstOfficer.hours}
                 flights={firstOfficer.flights}
-                profile={crewProfiles[firstOfficer.id]}
+                profile={crewProfiles[profileKey(firstOfficer)]}
                 onEdit={setEditingCrewId}
               />
             )}
             {attendants.map((member) => (
               <CrewCard
                 key={member.id}
-                crewId={member.id}
+                crewId={profileKey(member)}
                 name={member.name}
                 role={member.role}
                 hours={member.hours}
                 flights={member.flights}
-                profile={crewProfiles[member.id]}
+                profile={crewProfiles[profileKey(member)]}
                 onEdit={setEditingCrewId}
               />
             ))}

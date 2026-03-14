@@ -131,6 +131,13 @@ class DispatchServer {
       res.json({ status: 'ok', timestamp: new Date().toISOString() });
     });
 
+    // Lightweight SimConnect status — checked independently from backend health.
+    // Returns connected:true only when MSFS is running and the SimConnect link is up.
+    this.app.get('/api/simconnect/status', (req, res) => {
+      const svc = require('./simConnectService');
+      res.json({ connected: svc.getConnectionStatus() });
+    });
+
     // Diagnostic endpoint for debugging connection issues
     this.app.get('/api/diagnostic', (req, res) => {
       const os = require('os');
@@ -1098,7 +1105,7 @@ class DispatchServer {
             approach: awx.approaches_in_use || null,
             gate: cf.assigned_gate || null,
             taxiRoute: Array.isArray(cf.taxi_path) && cf.taxi_path.length > 0
-              ? taxiGraphService.getRoute(cf.taxi_path, fd.current_airport || cf.flight_origin)
+              ? (taxiGraphService.getRoute(cf.taxi_path, fd.current_airport || cf.flight_origin) || ['RCVD'])
               : null
           }
         });
@@ -3225,11 +3232,19 @@ class DispatchServer {
 
         const isKahuna = (crew.People?.CompanyId || crew.CompanyId) === '5597c4b6-8f0b-4bbd-a13e-42f8a6e04026';
         const peopleId = crew.People?.Id;
+        // Passenger employees (OA staff traveling, not working crew) have role > 2.
+        // Role 3+ = deadhead / employee passenger — skip personality profile for these.
+        const isPassengerEmployee = roleValue > 2;
         const extracted = {
           id: crew.Id,
+          // peopleId is stable across flights (People.Id never changes for a given person).
+          // Use this as the profile key so saved profiles persist between flights.
+          peopleId: peopleId || null,
           name: crewName,
           level: crewLevel,
           role: crewRole,
+          rawRole: roleValue,      // expose raw OA role value for passenger detection
+          isPassenger: isPassengerEmployee,
           companyId: crew.People?.CompanyId || crew.CompanyId,
           isKahuna: isKahuna,
           // isMe: true ONLY for the user's own OnAir character.
