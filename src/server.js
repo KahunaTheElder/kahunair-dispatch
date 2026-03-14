@@ -1053,15 +1053,19 @@ class DispatchServer {
           try {
             const flightJson = JSON.parse(fs.readFileSync(flightJsonPath, 'utf8'));
             const fd = flightJson?.flight_details || {};
+            // Stale check: flight.json timestamp is Unix epoch (float, seconds).
+            // If the file is >5 minutes old, SI is not actively running.
+            const ageSeconds = (Date.now() / 1000) - (fd.timestamp || 0);
+            const isRunning = ageSeconds <= 300;
             return res.json({
-              running: true,
+              running: isRunning,
               callsign: fd.callsign || null,
               flight_id: fd.flight_id ?? null,
               on_ground: fd.on_ground ?? null,
               current_airport: fd.current_airport || null
             });
           } catch {
-            return res.json({ running: true, callsign: null, flight_id: null, on_ground: null, current_airport: null });
+            return res.json({ running: false, callsign: null, flight_id: null, on_ground: null, current_airport: null });
           }
         } else {
           return res.json({ running: false, callsign: null, flight_id: null, on_ground: null, current_airport: null });

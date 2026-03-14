@@ -524,8 +524,8 @@ export default function AppMinimal() {
         if (backRes.ok) {
           console.log(`[AppMinimal] ✓ Backend is healthy (poll #${pollCount})`)
           setBackendStatus('online')
-          setOnAirStatus('online')
           setSimBriefStatus('online')
+          // OA status is driven by the flight poll, not the health check
           // SC status is checked independently — backend being healthy does NOT mean MSFS is running.
           try {
             const scRes = await fetch(`${apiUrl}/api/simconnect/status`, { signal: AbortSignal.timeout(2000) })
@@ -634,6 +634,7 @@ export default function AppMinimal() {
           const json = await res.json()
           if (json.success && json.flights && json.flights.length > 0) {
             setNoFlight(false)
+            setOnAirStatus('online')
             const activeFlight = json.flights[0]
             console.log('[AppMinimal] Active flight:', activeFlight.id, activeFlight.route?.departure?.ICAO, activeFlight.route?.arrival?.ICAO)
             setCrew(activeFlight.crew)
@@ -672,6 +673,7 @@ export default function AppMinimal() {
             }
           } else {
             setNoFlight(true)
+            setOnAirStatus('warning')
           }
         }
       } catch (error) {
@@ -800,6 +802,9 @@ export default function AppMinimal() {
 
           setFlightData(prev => ({
             ...prev || {},
+            // Use SimBrief departure/arrival as fallback — OA will override when it finds the flight
+            departure: prev?.departure?.ICAO ? prev.departure : (ofp.departure?.ICAO ? ofp.departure : (prev?.departure || { ICAO: '----', name: '----' })),
+            arrival: prev?.arrival?.ICAO ? prev.arrival : (ofp.arrival?.ICAO ? ofp.arrival : (prev?.arrival || { ICAO: '----', name: '----' })),
             alternate: ofp.alternate || { ICAO: '----', name: '----' },
             route: ofp.route || '',
             tow: towThousands,

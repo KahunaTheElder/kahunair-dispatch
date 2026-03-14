@@ -203,9 +203,14 @@ class SimBriefClient {
           return '';
         })(),
 
-        // Cruise information
+        // Cruise information — cruise_fl is in FL units (e.g. 290); initial_altitude is in feet (e.g. 29000)
         cruise: {
-          level: parseInt(getField(generalData, 'cruise_fl', 'cruiseFl', 'initial_altitude', 'initialAltitude') || 0) || 0,
+          level: (() => {
+            const fl = parseInt(getField(generalData, 'cruise_fl', 'cruiseFl') || 0) || 0;
+            if (fl > 0) return fl;
+            const altFt = parseInt(getField(generalData, 'initial_altitude', 'initialAltitude') || 0) || 0;
+            return altFt > 0 ? Math.round(altFt / 100) : 0;
+          })(),
           speed: parseFloat(getField(generalData, 'cruise_mach', 'cruiseMach') || 0) || 0
         },
 
