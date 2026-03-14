@@ -9,9 +9,9 @@ const logger = require('./logger');
 
 // Data definition IDs
 const DEF_ID_TELEMETRY = 0;  // numeric (polled every second)
-const DEF_ID_NAMES     = 1;  // string station names (fetched once on connect)
+const DEF_ID_NAMES = 1;  // string station names (fetched once on connect)
 const REQ_ID_TELEMETRY = 0;
-const REQ_ID_NAMES     = 1;
+const REQ_ID_NAMES = 1;
 
 // Numeric variables registered in DEF_ID_TELEMETRY (in buffer order):
 // [0]  PLANE HEADING DEGREES MAGNETIC
@@ -26,24 +26,25 @@ const REQ_ID_NAMES     = 1;
 // [9]  GPS POSITION LON
 // [10] SIM ON GROUND
 // [11-25] PAYLOAD STATION WEIGHT:1..15
-const NUMERIC_VAR_COUNT = 26;
-const STATION_COUNT     = 15; // SDK max
+// [26] GPS ETE
+const NUMERIC_VAR_COUNT = 27;
+const STATION_COUNT = 15; // SDK max
 
 // Station name classification (checked in priority order)
-const CAT_SKIP  = 'skip';
+const CAT_SKIP = 'skip';
 const CAT_CARGO = 'cargo';
-const CAT_CREW  = 'crew';
-const CAT_PAX   = 'pax';
-const SKIP_RE   = /do not alter|ballast|structural/i;
-const CARGO_RE  = /cargo|freight|baggage|bag|hold/i;
-const CREW_RE   = /\bpilot\b|co.?pilot|first officer|crew|attendant|steward|purser/i;
-const PAX_RE    = /\bzone\b|pax|passenger|seat|row/i;
+const CAT_CREW = 'crew';
+const CAT_PAX = 'pax';
+const SKIP_RE = /do not alter|ballast|structural/i;
+const CARGO_RE = /cargo|freight|baggage|bag|hold/i;
+const CREW_RE = /\bpilot\b|co.?pilot|first officer|crew|attendant|steward|purser/i;
+const PAX_RE = /\bzone\b|pax|passenger|seat|row/i;
 
 function classifyStation(name) {
-    if (!name || SKIP_RE.test(name))  return CAT_SKIP;
-    if (CARGO_RE.test(name))          return CAT_CARGO;
-    if (CREW_RE.test(name))           return CAT_CREW;
-    if (PAX_RE.test(name))            return CAT_PAX;
+    if (!name || SKIP_RE.test(name)) return CAT_SKIP;
+    if (CARGO_RE.test(name)) return CAT_CARGO;
+    if (CREW_RE.test(name)) return CAT_CREW;
+    if (PAX_RE.test(name)) return CAT_PAX;
     return 'unknown';
 }
 
@@ -59,8 +60,7 @@ class SimConnectService {
         this.updateInterval = null;
         this.listeners = [];
         this.reconnectAttempts = 0;
-        this.maxReconnectAttempts = 10;
-        this.reconnectDelay = 2000; // ms
+        this.reconnectDelay = 2000; // ms — backs off to 30s max, retries indefinitely
         this._firstPollLogged = false;
         // Station names fetched once on connect, cached for the session
         this.stationNames = null;   // string[] length STATION_COUNT, or null if not yet received
@@ -123,21 +123,23 @@ class SimConnectService {
     _defineTelemetryDataDefinition() {
         const vars = [
             ['PLANE HEADING DEGREES MAGNETIC', 'Degrees'],
-            ['INDICATED ALTITUDE',             'Feet'],
-            ['AIRSPEED INDICATED',             'Knots'],
-            ['TOTAL WEIGHT',                   'Pounds'],
-            ['EMPTY WEIGHT',                   'Pounds'],
-            ['FUEL TOTAL QUANTITY WEIGHT',     'Pounds'],
-            ['GPS GROUND SPEED',               'Knots'],
-            ['VERTICAL SPEED',                 'Feet per minute'],
-            ['GPS POSITION LAT',               'Degrees'],
-            ['GPS POSITION LON',               'Degrees'],
-            ['SIM ON GROUND',                  'Bool'],
+            ['INDICATED ALTITUDE', 'Feet'],
+            ['AIRSPEED INDICATED', 'Knots'],
+            ['TOTAL WEIGHT', 'Pounds'],
+            ['EMPTY WEIGHT', 'Pounds'],
+            ['FUEL TOTAL QUANTITY WEIGHT', 'Pounds'],
+            ['GPS GROUND SPEED', 'Knots'],
+            ['VERTICAL SPEED', 'Feet per minute'],
+            ['GPS POSITION LAT', 'Degrees'],
+            ['GPS POSITION LON', 'Degrees'],
+            ['SIM ON GROUND', 'Bool'],
         ];
         // Append payload station weight slots 1..15
         for (let i = 1; i <= STATION_COUNT; i++) {
             vars.push([`PAYLOAD STATION WEIGHT:${i}`, 'Pounds']);
         }
+        // GPS ETE — follows active flight plan route; 0 when no destination programmed
+        vars.push(['GPS ETE', 'Seconds']);
         try {
             for (const [name, unit] of vars) {
                 this.handle.addToDataDefinition(DEF_ID_TELEMETRY, name, unit, SimConnectDataType.FLOAT64);
@@ -262,9 +264,9 @@ class SimConnectService {
             if (buf.buffer && buf.buffer.buffer) {
                 const raw = buf.buffer.buffer;
                 buf = raw.data && Array.isArray(raw.data) ? Buffer.from(raw.data)
-                    : Buffer.isBuffer(raw)                ? raw
-                    : raw instanceof ArrayBuffer          ? Buffer.from(raw)
-                    : null;
+                    : Buffer.isBuffer(raw) ? raw
+                        : raw instanceof ArrayBuffer ? Buffer.from(raw)
+                            : null;
                 if (!buf) throw new Error('Cannot extract inner buffer');
                 offset = 28;
             } else if (buf.buffer && buf.buffer instanceof ArrayBuffer) {
@@ -366,30 +368,31 @@ class SimConnectService {
             }
 
             // Named slots (matches _defineTelemetryDataDefinition registration order)
-            const headingRaw       = vals[0];
-            const altitudeFeet     = vals[1];
-            const airspeedKnots    = vals[2];
-            const totalWeightLbs   = vals[3];
-            const emptyWeightLbs   = vals[4];
-            const fuelWeightLbs    = vals[5];  // FUEL TOTAL QUANTITY WEIGHT — already lbs, no KG bug
+            const headingRaw = vals[0];
+            const altitudeFeet = vals[1];
+            const airspeedKnots = vals[2];
+            const totalWeightLbs = vals[3];
+            const emptyWeightLbs = vals[4];
+            const fuelWeightLbs = vals[5];  // FUEL TOTAL QUANTITY WEIGHT — already lbs, no KG bug
             const groundSpeedKnots = vals[6];
             const verticalSpeedFpm = vals[7];
-            const planeLat         = vals[8];
-            const planeLon         = vals[9];
-            const onGround         = vals[10] > 0.5;
-            const stationWeights   = vals.slice(11, 11 + STATION_COUNT); // [0]=stn1 … [14]=stn15
+            const planeLat = vals[8];
+            const planeLon = vals[9];
+            const onGround = vals[10] > 0.5;
+            const stationWeights = vals.slice(11, 11 + STATION_COUNT); // [0]=stn1 … [14]=stn15
+            const gpsEteSeconds = vals[26] || 0;  // GPS ETE: 0 when no dest programmed
 
             // ── Classify payload stations by name ────────────────────────────────
             const names = this.stationNames || new Array(STATION_COUNT).fill('');
-            let paxWeightLbs  = 0;
+            let paxWeightLbs = 0;
             let cargoWeightLbs = 0;
             const paxStationWeights = [];  // individual pax-zone weights for GCD count derivation
             const stationDetails = [];     // emitted for boarding/deboarding UI
 
             for (let i = 0; i < STATION_COUNT; i++) {
-                const name   = names[i] || '';
+                const name = names[i] || '';
                 const weight = stationWeights[i] || 0;
-                const cat    = classifyStation(name);
+                const cat = classifyStation(name);
                 stationDetails.push({ index: i + 1, name, weight, category: cat });
                 if (cat === CAT_PAX && weight > 0.5) {
                     paxWeightLbs += weight;
@@ -408,7 +411,7 @@ class SimConnectService {
             }
 
             // ── Derived weights ───────────────────────────────────────────────────
-            const headingDegrees  = ((headingRaw % 360) + 360) % 360;
+            const headingDegrees = ((headingRaw % 360) + 360) % 360;
             const payloadWeightLbs = Math.max(0, totalWeightLbs - emptyWeightLbs - fuelWeightLbs);
             const zeroFuelWeightLbs = emptyWeightLbs + paxWeightLbs + cargoWeightLbs;
 
@@ -458,8 +461,8 @@ class SimConnectService {
                 navigation: {
                     nextWaypoint: null,
                     nextWaypointDistance: null,
-                    eteSeconds: null,
-                    eteMinutes: null
+                    eteSeconds: gpsEteSeconds > 0 ? gpsEteSeconds : null,
+                    eteMinutes: gpsEteSeconds > 0 ? Math.round(gpsEteSeconds / 60) : null
                 },
                 timestamp: Date.now()
             };
@@ -526,20 +529,16 @@ class SimConnectService {
      * @private
      */
     _scheduleReconnect() {
-        if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-            logger.error('[SimConnect] Max reconnection attempts reached');
-            return;
-        }
-
         this.reconnectAttempts++;
+        // Back off: 2s → 4s → 8s → … → 30s max. Retries indefinitely until MSFS starts.
+        const delay = Math.min(this.reconnectDelay * Math.pow(1.5, Math.min(this.reconnectAttempts - 1, 8)), 30000);
         logger.info(
-            `[SimConnect] Scheduling reconnect attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts} ` +
-            `in ${this.reconnectDelay}ms`
+            `[SimConnect] Scheduling reconnect attempt ${this.reconnectAttempts} in ${Math.round(delay / 1000)}s (MSFS not yet running)`
         );
 
         setTimeout(() => {
             this.connect();
-        }, this.reconnectDelay);
+        }, delay);
     }
 
     /**
