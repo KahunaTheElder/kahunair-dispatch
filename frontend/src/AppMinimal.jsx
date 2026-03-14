@@ -1386,9 +1386,17 @@ export default function AppMinimal() {
               ? <span onClick={(e) => { e.stopPropagation(); setShowSiDebug(v => !v) }} style={{ marginLeft: '10px', fontSize: '11px', color: '#f87171', fontWeight: 600, cursor: siDebugInfo ? 'pointer' : 'default', textDecoration: siDebugInfo ? 'underline dotted' : 'none' }}>⚠ SI Error {siDebugInfo ? '(details)' : ''}</span>
               : null
 
-    // Collapsed summary: names of crew members
-    const crewSummary = crew.members.map(m => {
-      const roleAbbr = m.role === 'Captain' ? 'CPT' : m.role === 'First Officer' ? 'F/O' : 'FA'
+    const passengers = crew.members.filter(m => m.isPassenger)
+
+    // Collapsed summary: Capt → FO → FA → PAX order
+    const orderedForSummary = [
+      ...(captain ? [captain] : []),
+      ...(firstOfficer ? [firstOfficer] : []),
+      ...attendants,
+      ...passengers
+    ]
+    const crewSummary = orderedForSummary.map(m => {
+      const roleAbbr = m.isPassenger ? 'PAX' : m.role === 'Captain' ? 'CPT' : m.role === 'First Officer' ? 'F/O' : 'FA'
       return `${roleAbbr}: ${m.name}`
     }).join('  •  ')
 
@@ -1436,6 +1444,23 @@ export default function AppMinimal() {
                 onEdit={setEditingCrewId}
               />
             ))}
+            {passengers.length > 0 && (
+              <>
+                <div style={{ gridColumn: '1 / -1', borderTop: '1px solid #1f2937', margin: '4px 0 2px', paddingTop: '6px', fontSize: '10px', color: '#4b5563', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Company Passengers</div>
+                {passengers.map((member) => (
+                  <CrewCard
+                    key={member.id}
+                    crewId={profileKey(member)}
+                    name={member.name}
+                    role={member.role}
+                    hours={member.hours}
+                    flights={member.flights}
+                    profile={crewProfiles[profileKey(member)]}
+                    onEdit={null}
+                  />
+                ))}
+              </>
+            )}
           </div>
         )}
       </div>
@@ -1495,22 +1520,22 @@ export default function AppMinimal() {
         crewName={
           editingCrewId === 'my-pilot'
             ? (crew?.members?.find(m => m.isMe) ?? crew?.members?.find(m => m.role === 'Captain'))?.name
-            : crew?.members?.find(m => m.id === editingCrewId)?.name
+            : crew?.members?.find(m => (m.peopleId || m.id) === editingCrewId)?.name
         }
         crewRole={
           editingCrewId === 'my-pilot'
             ? 'Captain'
-            : crew?.members?.find(m => m.id === editingCrewId)?.role
+            : crew?.members?.find(m => (m.peopleId || m.id) === editingCrewId)?.role
         }
         crewHours={
           editingCrewId === 'my-pilot'
             ? ((crew?.members?.find(m => m.isMe) ?? crew?.members?.find(m => m.role === 'Captain'))?.hours || 0)
-            : (crew?.members?.find(m => m.id === editingCrewId)?.hours || 0)
+            : (crew?.members?.find(m => (m.peopleId || m.id) === editingCrewId)?.hours || 0)
         }
         crewFlights={
           editingCrewId === 'my-pilot'
             ? ((crew?.members?.find(m => m.isMe) ?? crew?.members?.find(m => m.role === 'Captain'))?.flights || 0)
-            : (crew?.members?.find(m => m.id === editingCrewId)?.flights || 0)
+            : (crew?.members?.find(m => (m.peopleId || m.id) === editingCrewId)?.flights || 0)
         }
         profile={crewProfiles[editingCrewId]}
         onSave={handleSaveCrewPersonality}
