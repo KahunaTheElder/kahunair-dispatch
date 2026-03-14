@@ -943,7 +943,7 @@ export default function AppMinimal() {
     return () => clearInterval(interval)
   }, [apiUrl, siRunning])
 
-  const StatusDot = ({ status, label }) => {
+  const StatusDot = ({ status, label, tooltip }) => {
     const dotColor = {
       'online': '#4ade80',
       'offline': '#ef4444',
@@ -951,8 +951,15 @@ export default function AppMinimal() {
       'warning': '#f59e0b'
     }[status] || '#9ca3af'
 
+    const statusText = {
+      'online': 'Online',
+      'offline': 'Offline',
+      'checking': 'Checking…',
+      'warning': 'Not active'
+    }[status] || 'Unknown'
+
     return (
-      <div className="status-item-column">
+      <div className="status-item-column" title={tooltip ? `${tooltip}\n${statusText}` : statusText}>
         <span className="status-label-text">{label}</span>
         <div className="status-dot-only" style={{ backgroundColor: dotColor }}></div>
       </div>
@@ -1441,11 +1448,11 @@ export default function AppMinimal() {
       <div className="top-bar">
         <TelemetryDisplay />
         <div className="status-indicators">
-          <StatusDot status={backendStatus} label="BE" />
-          <StatusDot status={onAirStatus} label="OA" />
-          <StatusDot status={siStatus} label="SI" />
-          <StatusDot status={simConnectStatus} label="SC" />
-          <StatusDot status={simBriefStatus} label="SB" />
+          <StatusDot status={backendStatus} label="BE" tooltip="BE — Backend server" />
+          <StatusDot status={onAirStatus} label="OA" tooltip="OA — OnAir active flight" />
+          <StatusDot status={siStatus} label="SI" tooltip="SI — SayIntentions.AI" />
+          <StatusDot status={simConnectStatus} label="SC" tooltip="SC — SimConnect / MSFS" />
+          <StatusDot status={simBriefStatus} label="SB" tooltip="SB — SimBrief" />
           <button
             onClick={openVAProfile}
             title="VA Profile — airline identity for SayIntentions.AI"
