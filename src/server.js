@@ -1098,7 +1098,7 @@ class DispatchServer {
             approach: awx.approaches_in_use || null,
             gate: cf.assigned_gate || null,
             taxiRoute: Array.isArray(cf.taxi_path) && cf.taxi_path.length > 0
-              ? taxiGraphService.getRoute(cf.taxi_path, cf.flight_origin)
+              ? taxiGraphService.getRoute(cf.taxi_path, fd.current_airport || cf.flight_origin)
               : null
           }
         });
