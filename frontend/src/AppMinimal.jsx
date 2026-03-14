@@ -1288,12 +1288,23 @@ export default function AppMinimal() {
     )
   }
 
-  const CrewCard = ({ crewId, name, role, hours, flights, profile, onEdit }) => {
+  const CrewCard = ({ crewId, name, role, hours, flights, profile, onEdit, isPassenger }) => {
     const getRoleColor = (role) => {
       if (role === 'Captain') return '#fbbf24'
       if (role === 'First Officer') return '#60a5fa'
       if (role === 'Flight Attendant') return '#34d399'
       return '#9ca3af'
+    }
+
+    if (isPassenger) {
+      return (
+        <div className="crew-card">
+          <div className="crew-role" style={{ borderLeftColor: '#4b5563' }}>
+            <div className="crew-name">{name}</div>
+            <div className="crew-position" style={{ color: '#6b7280' }}>Company Passenger</div>
+          </div>
+        </div>
+      )
     }
 
     const personalityColor = {
@@ -1457,6 +1468,7 @@ export default function AppMinimal() {
                     flights={member.flights}
                     profile={crewProfiles[profileKey(member)]}
                     onEdit={null}
+                    isPassenger={true}
                   />
                 ))}
               </>
