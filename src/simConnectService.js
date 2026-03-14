@@ -65,6 +65,10 @@ class SimConnectService {
         // Station names fetched once on connect, cached for the session
         this.stationNames = null;   // string[] length STATION_COUNT, or null if not yet received
         this._namesTimeout = null;
+        // PAX count stability tracking — MSFS boards pax incrementally which
+        // makes the GCD wildly incorrect mid-boarding. Hold last stable count.
+        this._prevTotalPaxWeight = null;
+        this._lastStablePaxCount = null;
     }
 
     /**
@@ -403,12 +407,25 @@ class SimConnectService {
             }
 
             // ── Derive pax count via GCD of zone weights ──────────────────────────
-            // e.g. zones of 510, 510, 340 → GCD=170 → 21 pax. Works for any aircraft.
-            let paxCount = 0;
-            if (paxStationWeights.length > 0) {
+            // MSFS loads passengers incrementally (boarding animation), so a zone's
+            // weight changes by ~25 lbs/sec mid-board. GCD(510, 366) = 6 → absurd count.
+            // Fix: only recompute when total pax weight is stable (≤5 lbs change vs
+            // last poll). Hold last stable count while boarding is in progress.
+            // Sanity floor: require perPaxWeight ≥ 50 lbs (rejects GCD=1/2 artifacts).
+            let paxCount = this._lastStablePaxCount ?? 0;
+            const weightsStable = this._prevTotalPaxWeight !== null &&
+                Math.abs(paxWeightLbs - this._prevTotalPaxWeight) <= 5;
+            if (weightsStable && paxStationWeights.length > 0) {
                 const perPaxWeight = paxStationWeights.reduce(gcd);
-                paxCount = perPaxWeight > 0 ? Math.round(paxWeightLbs / perPaxWeight) : 0;
+                if (perPaxWeight >= 50) {
+                    paxCount = Math.round(paxWeightLbs / perPaxWeight);
+                    this._lastStablePaxCount = paxCount;
+                }
+            } else if (!weightsStable) {
+                // Boarding in progress — reset stable baseline, hold last count
+                this._lastStablePaxCount = this._lastStablePaxCount ?? 0;
             }
+            this._prevTotalPaxWeight = paxWeightLbs;
 
             // ── Derived weights ───────────────────────────────────────────────────
             const headingDegrees = ((headingRaw % 360) + 360) % 360;
