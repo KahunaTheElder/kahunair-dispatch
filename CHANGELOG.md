@@ -4,6 +4,30 @@ All notable changes to KahunaAir Dispatch are documented here.
 
 ---
 
+## [0.2.2] - 2026-03-14  *(Test Flight 2)*
+
+### Fixed — Status Indicators
+- **OA indicator** no longer shows green from backend health check alone; goes green only when `/api/flights/active` returns an active flight, amber while waiting
+- **SI indicator** now performs a staleness check on `flight.json` — if the file is >5 minutes old the indicator shows amber instead of green (fixes false-green from previous session)
+- **Status dot tooltips** added: hovering any indicator (BE/OA/SI/SC/SB) shows full name and current state
+
+### Fixed — SimBrief OFP Display
+- **Departure/Arrival airports** now populated from SimBrief OFP immediately on load; previously showed `---- / ----` until OnAir found the active flight
+- **RFL display** fixed: `initial_altitude` fallback (feet) now divided by 100 before display; previously showed `FL29000` instead of `FL290`
+
+### Fixed — SimConnect
+- **SC reconnects indefinitely** until MSFS is running — previously gave up after 10 attempts (~20s); now retries with exponential backoff up to 30s, forever
+
+### Fixed — Crew Display
+- **Crew editor name/hours/role** now resolve correctly — lookup was matching on flight `id` instead of stable `peopleId`; new crew appeared as nameless "New Hire"
+- **Company passengers** now shown below FA section with a divider; display name + "Company Passenger" label only — no stats, no edit button
+- **Collapsed crew summary** follows Capt → FO → FA → PAX order with `PAX:` prefix for company passengers
+
+### Fixed — Telemetry PAX Count
+- PAX count now derived as `round(totalPaxWeight / 170)` — replaces unstable GCD approach which produced wildly wrong counts during MSFS boarding animation
+
+---
+
 ## [0.2.1] - 2026-03-12
 
 ### Added — VA Profile Editor (7-section form)
