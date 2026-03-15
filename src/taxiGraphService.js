@@ -87,6 +87,26 @@ class TaxiGraphService {
         return null;
     }
 
+    /**
+     * Pre-fetch (or return cached) taxi graph for an ICAO.
+     * Returns { cached, pts, paths, names, edgeMap } or null if SimConnect unavailable.
+     */
+    prefetch(icao) {
+        if (!icao) return null;
+        let simConnectService;
+        try { simConnectService = require('./simConnectService'); } catch (_) { return null; }
+        const handle = simConnectService?.handle;
+        if (!handle) return null;
+        this._ensureListeners(handle);
+        if (this._cache.has(icao)) {
+            const g = this._cache.get(icao);
+            return { cached: true, pts: g.pts.length, paths: g.edgeMap.size / 2, names: g.taxiNames.length, nameList: g.taxiNames.map(n => n.name).filter(Boolean) };
+        }
+        const alreadyPending = [...this._pending.values()].some(p => p.icao === icao);
+        if (!alreadyPending) this._startFetch(handle, icao);
+        return { cached: false, pending: true };
+    }
+
     /** Evict all cached graphs (call on new flight detection if desired) */
     clearCache() {
         this._cache.clear();

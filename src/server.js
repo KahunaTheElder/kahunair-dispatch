@@ -138,6 +138,15 @@ class DispatchServer {
       res.json({ connected: svc.getConnectionStatus() });
     });
 
+    // Taxi graph diagnostic — fetch or return cached graph info for an ICAO
+    this.app.get('/api/taxi/graph/:icao', (req, res) => {
+      const icao = (req.params.icao || '').toUpperCase().trim();
+      if (!icao) return res.status(400).json({ error: 'ICAO required' });
+      const result = taxiGraphService.prefetch(icao);
+      if (!result) return res.status(503).json({ error: 'SimConnect unavailable' });
+      res.json({ icao, ...result });
+    });
+
     // Diagnostic endpoint for debugging connection issues
     this.app.get('/api/diagnostic', (req, res) => {
       const os = require('os');
