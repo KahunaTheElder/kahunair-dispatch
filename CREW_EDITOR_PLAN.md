@@ -1,23 +1,112 @@
-# Crew Personality Editor — Implementation Plan
+# KahunaAir Dispatch — Continuation Document
 
-**Status:** Ready to Implement  
-**Target Branch:** master  
-**Reference:** This document captures all decisions, architecture, and sequenced work items for the crew personality editor feature.
+**Last Updated:** 2026-03-14 (end of TF2 session)
+**Current Version:** 0.2.2
+**Branch:** master (synced with origin/master)
+**Next Flight:** TF3 — ESNO → LEBG
 
 ---
 
-## Summary of Feature
+## Active Work Item: Taxi Route Display
+
+### Status: In testing — taxi graph parses correctly, HOLD SHORT logic wired, TF3 will be first real test
+
+### What works:
+- `src/taxiGraphService.js` fetches taxi graph from SimConnect Facility API per ICAO
+- TAXI_PATH events parse correctly: 4 × INT32 per path (START, END, NAME_INDEX, TYPE), 40 bytes total
+- Graph cached per ICAO for the session; SimConnect reconnect evicts and re-fetches
+- `_resolveRoute()`: snaps SI `taxi_path` waypoints (75m threshold) → named taxiway sequence
+- `TYPE=1` edges emit `HOLD SHORT` token instead of being dropped
+- Sandwich-interloper collapse exempts `HOLD SHORT` tokens
+- `GET /api/taxi/graph/:icao` — pre-fetch/inspect any airport's graph
+
+### TF3 test expectations at LEBG:
+- LEBG graph pre-confirmed: 113 pts, 133 paths, 3 names (A, B, C) — matches real taxi chart
+- Taxi chart shows runway 04/22 crossing between taxiways B/C at hotspot HS1
+- Expected departure taxi sequence: something like `A → B → HOLD SHORT → C` (or similar depending on SI's routing)
+- If `HOLD SHORT` doesn't appear, check `TYPE` field on runway-crossing edges (may need raw dump via diagnostic endpoint)
+
+### If taxi still shows `RCVD` at LEBG:
+1. Hit `GET /api/taxi/graph/LEBG` — confirm pts/paths/names cached
+2. Tail log: `Get-Content "$env:APPDATA\kahunair-dispatch\logs\dispatch-*.log" -Wait | Select-String "TaxiGraph"`
+3. Look for "segNames (pre-filter): []" — if empty, SI has no runway-crossing edges (TYPE=1) in its path
+4. As a fallback: show raw taxiway names even without HOLD SHORT (they should show A/B/C)
+
+### Known limitation:
+- HOLD SHORT has no runway number (e.g. `HOLD SHORT` not `HOLD SHORT RWY 04`) — `IS_RUNWAY`, `RUNWAY_NUMBER_0`, `RUNWAY_DESIGNATOR_0` are not valid SimConnect TAXI_PATH fields. To add runway number would require a different approach (e.g. cross-referencing RUNWAY facility data with path endpoint coords).
+
+---
+
+## Note 1 (TF2): Late runway update in app
+
+User noted the runway (active runway for departure/arrival) updated late in the app during TF2. This is SI updating `flight.json` late — we poll every 15s but the delay is on SI's side. No code change needed unless we want a manual refresh button.
+
+---
+
+## Note 2 (TF2): No taxi path on arrival at ESNO
+
+Correctly diagnosed as `RCVD` — ESNO has no runway crossing in SI's arrival taxi path. Graph parsed fine (68 paths, 3 names). Not a bug.
+
+---
+
+## Previous Session Summary: TF2 Fixes (all committed in 0.2.2)
+
+| # | Fix | Commit area |
+|---|---|---|
+| 1 | OFP departure/arrival blank on load | `simBriefClient.js` |
+| 2 | OA indicator false green | `AppMinimal.jsx` |
+| 3 | SI stale flight.json showed green | `server.js` staleness check |
+| 4 | RFL showing FL29000 | `simBriefClient.js` ÷100 |
+| 5 | SimConnect gave up after 10 retries | `simConnectService.js` |
+| 6 | Crew editor name blank (peopleId bug) | `AppMinimal.jsx` |
+| 7 | Company passengers section | `AppMinimal.jsx` |
+| 8 | Collapsed crew summary order | `AppMinimal.jsx` |
+| 9 | PAX count = weight/170 | `simConnectService.js` |
+| 10 | StatusDot tooltips | `AppMinimal.jsx` |
+
+---
+
+## Crew Personality Editor — Original Plan (Status: Not Yet Started)
 
 When a flight loads from OnAir, the app checks for a saved personality/background profile for each crew member (keyed by OA People UUID). If any profiles are missing, the app opens editors **sequentially** — Captain first (always the user), then FO, then FAs in order. Existing profiles are silently skipped. Once all crew are either profiled or explicitly skipped, the assembled data is automatically sent to SI's `importVAData` endpoint.
 
----
-
-## Confirmed Decisions
+### Confirmed Decisions
 
 | # | Decision | Detail |
 |---|---|---|
 | 1 | Profile key = OA UUID | `People.Id` UUID is the stable index for all crew profiles |
 | 2 | User pilot profile | Stored under fixed ID `my-pilot`. Captain role in OA = always the user — no UUID matching needed |
+| 3 | Editor trigger | Opens automatically when flight loads if profiles missing; also accessible from crew card "Edit" button |
+| 4 | Sequential flow | Captain → FO → FA1 → FA2... one editor at a time, modal |
+| 5 | Skip allowed | "Skip for now" button — profile stays empty, no SI data sent for that crewmember |
+| 6 | Storage | `src/data/crew-profiles/{uuid}.json` via `crewProfileManager.js` |
+| 7 | SI integration | On completion, profile merged into `importVAData` crew_data array |
+
+### Component: `CrewProfileEditorV2.jsx`
+- Already exists at `frontend/src/components/CrewProfileEditorV2.jsx`
+- Backend route: likely `GET/POST /api/crew/profile/:uuid`
+
+---
+
+## Build & Deploy Reference
+
+```powershell
+# Check CI status
+gh run list --limit 3 --json databaseId,status,createdAt | ConvertFrom-Json | Format-Table
+
+# Download latest build
+$runId = (gh run list --limit 1 --json databaseId | ConvertFrom-Json).databaseId
+Remove-Item "kahunair-dispatch-exe\KahunaAir Dispatch 0.2.2.exe" -Force
+gh run download $runId --dir .
+Copy-Item "kahunair-dispatch-exe\KahunaAir Dispatch 0.2.2.exe" "KahunaAir Dispatch 0.2.2.exe" -Force
+
+# Taxi graph diagnostic (app must be running)
+Invoke-RestMethod "http://localhost:3000/api/taxi/graph/LEBG" | ConvertTo-Json
+
+# Tail logs
+Get-Content "$env:APPDATA\kahunair-dispatch\logs\dispatch-2026-03-15.log" -Wait | Select-String "TaxiGraph"
+```
+
 | 3 | User identity in OA | The **Captain role** is always the user. No `myOaId` setting required. `my-pilot.json` is the permanent profile for the user regardless of which flight they command |
 | 4 | Random generation | 20–25 curated options per field, randomized independently. Hours + flights always come from OA; experience level derived via hours-to-rating lookup |
 | 5 | SI send trigger | Automatic — fires as soon as all crew on the current flight are either profiled or explicitly skipped. No manual button |

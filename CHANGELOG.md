@@ -4,7 +4,7 @@ All notable changes to KahunaAir Dispatch are documented here.
 
 ---
 
-## [0.2.2] - 2026-03-14  *(Test Flight 2)*
+## [0.2.2] - 2026-03-14  *(Test Flight 2 — EDXW → ESNO)*
 
 ### Fixed — Status Indicators
 - **OA indicator** no longer shows green from backend health check alone; goes green only when `/api/flights/active` returns an active flight, amber while waiting
@@ -25,6 +25,19 @@ All notable changes to KahunaAir Dispatch are documented here.
 
 ### Fixed — Telemetry PAX Count
 - PAX count now derived as `round(totalPaxWeight / 170)` — replaces unstable GCD approach which produced wildly wrong counts during MSFS boarding animation
+
+### Added — Taxi Route with Runway Hold Short Detection *(post-TF2, commits 3bc0615–e8764d6)*
+- **SimConnect Facility API** integration (`src/taxiGraphService.js`): fetches TAXI_POINT, TAXI_PATH, TAXI_NAME for each departure/arrival airport and caches result for the session
+- **Taxi display**: resolves SI `current_flight.taxi_path` waypoints to human-readable taxiway sequence (e.g. `A → B → C`)
+- **HOLD SHORT injection**: TAXI_PATH edges with `TYPE=1` (runway surface) emit `HOLD SHORT` in the route sequence instead of being silently dropped
+- **Snap threshold**: SI waypoints matched to nearest TAXI_POINT within 75 m (increased from 50 m after TF2 ESNO diagnosis showed nearest point at 54.5 m)
+- **Buffer fix**: `IS_RUNWAY` / `RUNWAY_NUMBER_0` / `RUNWAY_DESIGNATOR_0` are not valid SimConnect TAXI_PATH field names — they caused a 40-byte buffer overflow on every path, producing 0 cached paths. Replaced with `TYPE` (valid, 4th INT32 in the struct)
+- **Sandwich-interloper collapse**: route post-processing strips `X A X → X` interlopers but now exempts `HOLD SHORT` tokens from collapse
+- **Taxi graph diagnostic endpoint**: `GET /api/taxi/graph/:icao` returns `{ pts, paths, names, nameList }` for any ICAO — triggers a background fetch if not yet cached; useful for pre-flight inspection
+
+### Diagnosed — ESNO taxi result
+- ESNO (TF2 arrival): 113 pts, 133 paths, **3 named taxiways** (A, B, C) — taxi display returns `RCVD` because departure taxi path has no runway crossing in SI's data for that route
+- LEBG (TF3 destination): pre-fetched via diagnostic endpoint — 113 pts, 133 paths, **3 named taxiways** (A, B, C) — confirmed good test candidate for HOLD SHORT
 
 ---
 
