@@ -131,12 +131,10 @@ class TaxiGraphService {
         handle.addToFacilityDefinition(DEF_FACILITY, 'CLOSE TAXI_POINT');
 
         handle.addToFacilityDefinition(DEF_FACILITY, 'OPEN TAXI_PATH');
-        handle.addToFacilityDefinition(DEF_FACILITY, 'START');              // INT32  TAXI_POINT index
-        handle.addToFacilityDefinition(DEF_FACILITY, 'END');               // INT32  TAXI_POINT index
-        handle.addToFacilityDefinition(DEF_FACILITY, 'NAME_INDEX');        // UINT32 → TAXI_NAME array
-        handle.addToFacilityDefinition(DEF_FACILITY, 'IS_RUNWAY');         // INT32  1 if path is a runway surface
-        handle.addToFacilityDefinition(DEF_FACILITY, 'RUNWAY_NUMBER_0');   // INT32  runway number at START end (e.g. 6)
-        handle.addToFacilityDefinition(DEF_FACILITY, 'RUNWAY_DESIGNATOR_0'); // INT32 0=none 1=L 2=R 3=C
+        handle.addToFacilityDefinition(DEF_FACILITY, 'START');       // INT32  TAXI_POINT index
+        handle.addToFacilityDefinition(DEF_FACILITY, 'END');          // INT32  TAXI_POINT index
+        handle.addToFacilityDefinition(DEF_FACILITY, 'NAME_INDEX');   // UINT32 → TAXI_NAME array
+        handle.addToFacilityDefinition(DEF_FACILITY, 'TYPE');         // INT32  0=taxi 1=runway 2=parking…
         handle.addToFacilityDefinition(DEF_FACILITY, 'CLOSE TAXI_PATH');
 
         handle.addToFacilityDefinition(DEF_FACILITY, 'OPEN TAXI_NAME');
@@ -201,9 +199,7 @@ class TaxiGraphService {
                         start:     buf.readInt32(),
                         end:       buf.readInt32(),
                         nameIndex: buf.readUint32(),
-                        isRunway:  buf.readInt32() !== 0,
-                        runwayNum: buf.readInt32(),
-                        runwayDes: buf.readInt32(),
+                        isRunway:  buf.readInt32() === 1,  // TYPE: 0=taxiway 1=runway surface
                     });
                     break;
 
@@ -242,10 +238,10 @@ class TaxiGraphService {
             lon: airportRef.lon + p.biasX / (111111 * cosLat),
         }));
 
-        // Bi-directional edge map: 'startIdx_endIdx' → { nameIndex, isRunway, runwayNum, runwayDes }
+        // Bi-directional edge map: 'startIdx_endIdx' → { nameIndex, isRunway }
         const edgeMap = new Map();
         for (const path of taxiPaths) {
-            const entry = { nameIndex: path.nameIndex, isRunway: path.isRunway, runwayNum: path.runwayNum, runwayDes: path.runwayDes };
+            const entry = { nameIndex: path.nameIndex, isRunway: path.isRunway };
             edgeMap.set(`${path.start}_${path.end}`, entry);
             edgeMap.set(`${path.end}_${path.start}`, entry);
         }
@@ -291,16 +287,14 @@ class TaxiGraphService {
         // Walk snapped sequence, resolve taxiway name for each consecutive edge
         const matched = snapped.filter(idx => idx !== null);
         const segNames = [];
-        const _RWY_DES = ['', 'L', 'R', 'C'];
         for (let i = 0; i < matched.length - 1; i++) {
             const edge = edgeMap.get(`${matched[i]}_${matched[i + 1]}`);
             if (edge === undefined) continue;
             const name = taxiNames[edge.nameIndex]?.name || '';
             if (name) {
                 segNames.push(name);
-            } else if (edge.isRunway && edge.runwayNum > 0) {
-                const des = edge.runwayDes >= 1 && edge.runwayDes <= 3 ? _RWY_DES[edge.runwayDes] : '';
-                segNames.push(`HOLD SHORT RWY ${String(edge.runwayNum).padStart(2, '0')}${des}`);
+            } else if (edge.isRunway) {
+                segNames.push('HOLD SHORT');
             }
         }
         logger.debug(`[TaxiGraph] segNames (pre-filter): ${JSON.stringify(segNames)}`);
