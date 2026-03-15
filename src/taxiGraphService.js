@@ -324,7 +324,8 @@ class TaxiGraphService {
                 if (
                     i > 0 && i < route.length - 1 &&
                     route[i - 1] === route[i + 1] &&
-                    route[i] !== route[i - 1]
+                    route[i] !== route[i - 1] &&
+                    !route[i].startsWith('HOLD SHORT')
                 ) {
                     changed = true; // drop the interloper
                 } else {
