@@ -398,6 +398,7 @@ export default function AppMinimal() {
     setSiSendStatus('idle')
     pendingSISendRef.current = null
     siSentSessionRef.current = false
+    ofpProceduresRef.current = null  // clear so new OFP baseline is captured on re-fetch
     setSkipConfirm(null)
   }
 
@@ -855,7 +856,7 @@ export default function AppMinimal() {
     // Fetch OFP once after short delay (let other data load first)
     const timer = setTimeout(fetchOFPData, 500)
     return () => { clearTimeout(timer); clearTimeout(retryTimer) }
-  }, [apiUrl])
+  }, [apiUrl, flightPollKey])
 
   // Poll SI for procedure updates and cargo info
   useEffect(() => {
