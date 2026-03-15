@@ -1,6 +1,6 @@
 {
   "name": "kahunair-dispatch",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "API bridge between OnAir and SayIntentions.AI for MSFS 2024 flight dispatch",
   "main": "main.js",
   "homepage": "./",

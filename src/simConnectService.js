@@ -65,6 +65,7 @@ class SimConnectService {
         // Station names fetched once on connect, cached for the session
         this.stationNames = null;   // string[] length STATION_COUNT, or null if not yet received
         this._namesTimeout = null;
+        this._namesRefreshPending = false;
     }
 
     /**
@@ -383,6 +384,28 @@ class SimConnectService {
             const gpsEteSeconds = vals[26] || 0;  // GPS ETE: 0 when no dest programmed
 
             // ── Classify payload stations by name ────────────────────────────────
+            // If names are all empty but the aircraft has payload weight, the names weren't
+            // captured yet (SC connected before aircraft loaded / Start Flight scene change
+            // without a full disconnect). Re-request once to pick up the real aircraft names.
+            const allNamesEmpty = !this.stationNames || this.stationNames.every(n => !n);
+            const estimatedPayload = Math.max(0, totalWeightLbs - emptyWeightLbs - fuelWeightLbs);
+            if (allNamesEmpty && estimatedPayload > 50 && !this._namesRefreshPending) {
+                this._namesRefreshPending = true;
+                logger.info('[SimConnect] Station names empty but payload detected — re-requesting names for loaded aircraft');
+                setTimeout(() => {
+                    this._namesRefreshPending = false;
+                    if (!this.isConnected || !this.handle) return;
+                    try {
+                        this.handle.requestDataOnSimObject(
+                            REQ_ID_NAMES, DEF_ID_NAMES,
+                            SimConnectConstants.OBJECT_ID_USER,
+                            SimConnectPeriod.ONCE, 0, 0, 0, 0
+                        );
+                    } catch (e) {
+                        logger.warn('[SimConnect] Names re-request failed:', e.message);
+                    }
+                }, 2000);
+            }
             const names = this.stationNames || new Array(STATION_COUNT).fill('');
             let paxWeightLbs = 0;
             let cargoWeightLbs = 0;
@@ -505,6 +528,7 @@ class SimConnectService {
     _handleQuit() {
         logger.warn('[SimConnect] Simulator closed connection');
         this.isConnected = false;
+        this.stationNames = null;  // reset so reconnect re-fetches for the new aircraft
         this._stopPolling();
         this._scheduleReconnect();
     }
@@ -516,6 +540,7 @@ class SimConnectService {
     _handleClose() {
         logger.warn('[SimConnect] Connection closed unexpectedly');
         this.isConnected = false;
+        this.stationNames = null;  // reset so reconnect re-fetches for the new aircraft
         this._stopPolling();
         this._scheduleReconnect();
     }
