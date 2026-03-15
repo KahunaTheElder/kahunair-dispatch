@@ -23,7 +23,7 @@ const DEF_FACILITY = 10;
 let _reqCounter = 100;
 
 // Maximum distance (metres) to snap an SI waypoint to a TAXI_POINT node
-const SNAP_THRESHOLD_M = 50;
+const SNAP_THRESHOLD_M = 75;
 
 const R_EARTH = 6371000;
 
@@ -275,25 +275,17 @@ class TaxiGraphService {
         if (waypoints.length === 0) return null;
 
         // Snap waypoints to nearest TAXI_POINT within threshold
-        let _snapBestDist0 = Infinity;
-        const snapped = waypoints.map((wp, wi) => {
+        const snapped = waypoints.map(wp => {
             let best = null, bestDist = Infinity;
             for (const p of pts) {
                 const d = haversine(wp.lat, wp.lon, p.lat, p.lon);
                 if (d < bestDist) { bestDist = d; best = p; }
             }
-            if (wi === 0) _snapBestDist0 = bestDist;
             return bestDist <= SNAP_THRESHOLD_M ? best.idx : null;
         });
-        if (_snapBestDist0 > SNAP_THRESHOLD_M) {
-            logger.warn(`[TaxiGraph] snap miss on wp[0]: bestDist=${_snapBestDist0.toFixed(1)}m — airport ref: ${pts[0]?.lat?.toFixed(6)},${pts[0]?.lon?.toFixed(6)}, wp: ${waypoints[0]?.lat?.toFixed(6)},${waypoints[0]?.lon?.toFixed(6)}`);
-        }
 
         // Walk snapped sequence, resolve taxiway name for each consecutive edge
-        const snapMisses = snapped.filter(idx => idx === null).length;
         const matched = snapped.filter(idx => idx !== null);
-        const uniqueMatched = [...new Set(matched)];
-        logger.debug(`[TaxiGraph] snap: ${waypoints.length} wps → ${matched.length} hits, ${snapMisses} misses, ${uniqueMatched.length} unique nodes: [${uniqueMatched.join(',')}]`);
         const segNames = [];
         for (let i = 0; i < matched.length - 1; i++) {
             const edge = edgeMap.get(`${matched[i]}_${matched[i + 1]}`);
